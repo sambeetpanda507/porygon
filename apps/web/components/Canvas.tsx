@@ -100,6 +100,40 @@ function pickSourceNodeIds(graph: Graph): readonly string[] {
   return fallbackId ? [fallbackId] : [];
 }
 
+interface HoverTrafficInfo {
+  label: string;
+  incomingRps: number;
+  outgoingRps: number;
+  status: SimulationTick["nodes"][number]["status"] | null;
+}
+
+/** Incoming is what the hovered node was offered this tick (same number it's
+ * shown/colored by); outgoing is what it actually forwards — capped at its
+ * own Max RPS and zero if it has no outgoing edges at all — mirroring
+ * computeTick's own forward() logic in packages/simulator/src/simulate.ts so
+ * the tooltip never shows a number the simulation itself wouldn't produce. */
+function computeHoverTrafficInfo(
+  nodeId: string,
+  graph: Graph,
+  tick: SimulationTick | null,
+): HoverTrafficInfo | null {
+  const node = graph.nodes.find((candidate) => candidate.id === nodeId);
+  if (!node) {
+    return null;
+  }
+  const tickNode = tick?.nodes.find((candidate) => candidate.nodeId === nodeId);
+  if (!tickNode) {
+    return { label: node.label, incomingRps: 0, outgoingRps: 0, status: null };
+  }
+  const hasOutgoingEdges = graph.edges.some((edge) => edge.fromNodeId === nodeId);
+  const outgoingRps = !hasOutgoingEdges
+    ? 0
+    : node.stats.maxRps > 0
+      ? Math.min(tickNode.rps, node.stats.maxRps)
+      : tickNode.rps;
+  return { label: node.label, incomingRps: tickNode.rps, outgoingRps, status: tickNode.status };
+}
+
 export function Canvas(): ReactNode {
   const [initialData, setInitialData] = useState<StoredScene | null | undefined>(undefined);
   const [selectedElementId, setSelectedElementId] = useState<string | undefined>(undefined);
@@ -125,11 +159,24 @@ export function Canvas(): ReactNode {
   const [copyFeedback, setCopyFeedback] = useState<boolean>(false);
   const [versions, setVersions] = useState<readonly VersionRecord[]>([]);
   const [showOnboarding, setShowOnboarding] = useState<boolean>(false);
+  const [hoveredNodeId, setHoveredNodeId] = useState<string | undefined>(undefined);
+  const [hoverTooltipPos, setHoverTooltipPos] = useState<{ x: number; y: number } | null>(null);
   const saveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const copyFeedbackTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const excalidrawApiRef = useRef<ExcalidrawImperativeAPI | null>(null);
   const canvasWrapRef = useRef<HTMLDivElement | null>(null);
   const simWorkerRef = useRef<Worker | null>(null);
+  const elementsRef = useRef<readonly OrderedExcalidrawElement[]>([]);
+  const coordUtilsRef = useRef<{
+    viewportCoordsToSceneCoords: (
+      viewport: { clientX: number; clientY: number },
+      appState: AppState,
+    ) => { x: number; y: number };
+    sceneCoordsToViewportCoords: (
+      scene: { sceneX: number; sceneY: number },
+      appState: AppState,
+    ) => { x: number; y: number };
+  } | null>(null);
   const originalColorsRef = useRef<
     Map<string, { backgroundColor: string; strokeColor: string }>
   >(new Map());
@@ -210,6 +257,7 @@ export function Canvas(): ReactNode {
       appState: AppState,
       files: BinaryFiles,
     ): void => {
+      elementsRef.current = elements;
       if (isReadOnlyShare) {
         return;
       }
@@ -663,6 +711,85 @@ export function Canvas(): ReactNode {
     };
   }, [initialData]);
 
+  // Preloaded once so the per-pointermove hit test below never awaits a
+  // dynamic import — only the one-off handleDrop above needs that.
+  useEffect(() => {
+    void import("@excalidraw/excalidraw").then((mod): void => {
+      coordUtilsRef.current = {
+        viewportCoordsToSceneCoords: mod.viewportCoordsToSceneCoords,
+        sceneCoordsToViewportCoords: mod.sceneCoordsToViewportCoords,
+      };
+    });
+  }, []);
+
+  // Hit-tests the pointer (in scene coordinates, via the same conversion
+  // Excalidraw itself uses) against the current node elements' axis-aligned
+  // boxes — nodes are plain, unrotated rectangles (see componentElement.ts),
+  // so this is exact, not an approximation. A native listener is used for
+  // the same reason handleDrop above is: Excalidraw's own canvas can
+  // otherwise absorb the pointer before a React handler on a parent would
+  // see it.
+  useEffect(() => {
+    const wrapEl: HTMLDivElement | null = canvasWrapRef.current;
+    if (!wrapEl) {
+      return;
+    }
+
+    function handlePointerMove(event: PointerEvent): void {
+      const api: ExcalidrawImperativeAPI | null = excalidrawApiRef.current;
+      const coordUtils = coordUtilsRef.current;
+      if (!api || !coordUtils) {
+        return;
+      }
+      const appState: AppState = api.getAppState();
+      const { x: sceneX, y: sceneY } = coordUtils.viewportCoordsToSceneCoords(
+        { clientX: event.clientX, clientY: event.clientY },
+        appState,
+      );
+      const hoveredElement = elementsRef.current.find(
+        (element: OrderedExcalidrawElement): boolean =>
+          !element.isDeleted &&
+          getP0rygonComponentId(element) !== undefined &&
+          sceneX >= element.x &&
+          sceneX <= element.x + element.width &&
+          sceneY >= element.y &&
+          sceneY <= element.y + element.height,
+      );
+      if (!hoveredElement) {
+        setHoveredNodeId(undefined);
+        setHoverTooltipPos(null);
+        return;
+      }
+      const wrapRect = canvasWrapRef.current?.getBoundingClientRect();
+      if (!wrapRect) {
+        return;
+      }
+      const anchor = coordUtils.sceneCoordsToViewportCoords(
+        { sceneX: hoveredElement.x + hoveredElement.width / 2, sceneY: hoveredElement.y },
+        appState,
+      );
+      setHoveredNodeId(hoveredElement.id);
+      setHoverTooltipPos({ x: anchor.x - wrapRect.left, y: anchor.y - wrapRect.top });
+    }
+
+    function handlePointerLeave(): void {
+      setHoveredNodeId(undefined);
+      setHoverTooltipPos(null);
+    }
+
+    wrapEl.addEventListener("pointermove", handlePointerMove);
+    wrapEl.addEventListener("pointerleave", handlePointerLeave);
+
+    return (): void => {
+      wrapEl.removeEventListener("pointermove", handlePointerMove);
+      wrapEl.removeEventListener("pointerleave", handlePointerLeave);
+    };
+  }, [initialData]);
+
+  const hoverTrafficInfo: HoverTrafficInfo | null = hoveredNodeId
+    ? computeHoverTrafficInfo(hoveredNodeId, graph, latestTick)
+    : null;
+
   const inspectorPanel: ReactNode = (
     <Inspector
       selectedComponentId={selectedComponentId}
@@ -700,6 +827,47 @@ export function Canvas(): ReactNode {
           onChange={handleChange}
           viewModeEnabled={isReadOnlyShare}
         />
+        {hoverTrafficInfo && hoverTooltipPos && (
+          <div
+            className="node-hover-tooltip"
+            data-testid="node-hover-tooltip"
+            role="tooltip"
+            style={{ left: hoverTooltipPos.x, top: hoverTooltipPos.y }}
+          >
+            <div className="node-hover-tooltip-label">{hoverTrafficInfo.label}</div>
+            {hoverTrafficInfo.status ? (
+              <>
+                <div className="node-hover-tooltip-row">
+                  <span>Incoming</span>
+                  <span data-testid="node-hover-tooltip-incoming">
+                    {Math.round(hoverTrafficInfo.incomingRps).toLocaleString()} rps
+                  </span>
+                </div>
+                <div className="node-hover-tooltip-row">
+                  <span>Outgoing</span>
+                  <span data-testid="node-hover-tooltip-outgoing">
+                    {Math.round(hoverTrafficInfo.outgoingRps).toLocaleString()} rps
+                  </span>
+                </div>
+                <div className="node-hover-tooltip-row">
+                  <span>Health</span>
+                  <span
+                    className="node-hover-tooltip-status"
+                    data-testid="node-hover-tooltip-health"
+                  >
+                    <span
+                      className="node-hover-tooltip-dot"
+                      style={{ backgroundColor: NODE_STATUS_COLORS[hoverTrafficInfo.status] }}
+                    />
+                    {hoverTrafficInfo.status}
+                  </span>
+                </div>
+              </>
+            ) : (
+              <div className="node-hover-tooltip-empty">Run simulation to see live traffic.</div>
+            )}
+          </div>
+        )}
         {isReadOnlyShare ? (
           <ShareBanner onDuplicate={handleDuplicateToEdit} />
         ) : (

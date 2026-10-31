@@ -167,4 +167,49 @@ test.describe("traffic simulation", () => {
     await expect(serverARps).not.toHaveText("0 rps", { timeout: 10_000 });
     await expect(serverBRps).not.toHaveText("0 rps", { timeout: 10_000 });
   });
+
+  test("hovering a node while simulating shows its incoming/outgoing traffic and health as a tooltip", async ({
+    page,
+  }) => {
+    test.setTimeout(45_000);
+    await page.goto("/design");
+    const canvas = page.locator("canvas.excalidraw__canvas").first();
+    await canvas.waitFor({ state: "visible" });
+    const box = await canvas.boundingBox();
+    if (!box) throw new Error("canvas has no bounding box");
+
+    const client = { x: 260, y: 150 };
+    const server = { x: 260, y: 400 };
+
+    await dragComponentOntoCanvas(page, "client", box, client.x, client.y);
+    await dragComponentOntoCanvas(page, "server-vm", box, server.x, server.y);
+    await drawBoundArrow(page, box, client.x - 20, client.y, server.x - 20, server.y);
+
+    // The arrow-drawing step above leaves the cursor sitting on the Server
+    // node; move it somewhere empty first so "no tooltip" is a real check.
+    await page.mouse.move(box.x + 450, box.y + 450, { steps: 5 });
+    await expect(page.getByTestId("node-hover-tooltip")).toHaveCount(0);
+
+    await page.getByTestId("sim-play").click();
+    const serverStatus = page
+      .getByTestId("simulation-node-list")
+      .locator("li")
+      .filter({ hasText: "Server / VM" })
+      .locator('[data-testid$="-status"]');
+    await expect(serverStatus).toHaveText("overloaded", { timeout: 20_000 });
+
+    await page.mouse.move(box.x + server.x, box.y + server.y, { steps: 5 });
+    const tooltip = page.getByTestId("node-hover-tooltip");
+    await expect(tooltip).toBeVisible();
+    await expect(tooltip).toContainText("Server / VM");
+    await expect(page.getByTestId("node-hover-tooltip-incoming")).toHaveText("2,000 rps");
+    // Server / VM has no outgoing edges here, so nothing is forwarded
+    // regardless of its own capacity.
+    await expect(page.getByTestId("node-hover-tooltip-outgoing")).toHaveText("0 rps");
+    await expect(page.getByTestId("node-hover-tooltip-health")).toHaveText("overloaded");
+
+    // Moving off the node clears the tooltip.
+    await page.mouse.move(box.x + 50, box.y + 50, { steps: 5 });
+    await expect(page.getByTestId("node-hover-tooltip")).toHaveCount(0);
+  });
 });
