@@ -36,12 +36,18 @@ export function ComponentLibrary(): ReactNode {
           className="search-box"
           type="text"
           placeholder={`Search ${COMPONENTS.length}+ components…`}
+          aria-label="Search components"
           value={query}
           onChange={(event): void => setQuery(event.target.value)}
           data-testid="component-search"
         />
       </div>
       <div className="sidebar-scroll">
+        {visibleByCategory.size === 0 && (
+          <div className="sidebar-empty" data-testid="component-search-empty">
+            No components match &ldquo;{query}&rdquo;.
+          </div>
+        )}
         {CATEGORIES.map((category: CategoryDef): ReactNode => {
           const items: ComponentDef[] | undefined = visibleByCategory.get(category.id);
           if (!items) {
@@ -59,6 +65,7 @@ export function ComponentLibrary(): ReactNode {
                       key={component.id}
                       className="icon-chip"
                       draggable
+                      aria-label={`${component.label} — drag onto the canvas to add it`}
                       data-testid={`component-chip-${component.id}`}
                       onDragStart={(event: DragEvent<HTMLDivElement>): void => {
                         event.dataTransfer.setData(PORYGON_DRAG_MIME_TYPE, component.id);

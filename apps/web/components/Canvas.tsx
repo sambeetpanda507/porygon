@@ -60,6 +60,7 @@ const Excalidraw = dynamic(
 
 const SCENE_KEY = "porygon-scene";
 const VERSIONS_KEY = "porygon-versions";
+const ONBOARDING_DISMISSED_KEY = "porygon-onboarding-dismissed";
 const SAVE_DEBOUNCE_MS = 300;
 const COPY_FEEDBACK_MS = 2_000;
 
@@ -123,6 +124,7 @@ export function Canvas(): ReactNode {
   const [showSharingPanel, setShowSharingPanel] = useState<boolean>(false);
   const [copyFeedback, setCopyFeedback] = useState<boolean>(false);
   const [versions, setVersions] = useState<readonly VersionRecord[]>([]);
+  const [showOnboarding, setShowOnboarding] = useState<boolean>(false);
   const saveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const copyFeedbackTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const excalidrawApiRef = useRef<ExcalidrawImperativeAPI | null>(null);
@@ -166,6 +168,25 @@ export function Canvas(): ReactNode {
     return (): void => {
       cancelled = true;
     };
+  }, []);
+
+  // First-run hint: only for a genuinely empty, never-dismissed canvas —
+  // not for a shared read-only view, and not once the user has an existing
+  // diagram (dismissed or not) or has ever dismissed it before.
+  useEffect(() => {
+    if (initialData === undefined || isReadOnlyShare) {
+      return;
+    }
+    const alreadyDismissed = window.localStorage.getItem(ONBOARDING_DISMISSED_KEY) !== null;
+    const hasExistingDiagram = (initialData?.elements.length ?? 0) > 0;
+    if (!alreadyDismissed && !hasExistingDiagram) {
+      setShowOnboarding(true);
+    }
+  }, [initialData, isReadOnlyShare]);
+
+  const handleDismissOnboarding = useCallback((): void => {
+    setShowOnboarding(false);
+    window.localStorage.setItem(ONBOARDING_DISMISSED_KEY, "1");
   }, []);
 
   const handleChange = useCallback(
@@ -214,6 +235,10 @@ export function Canvas(): ReactNode {
       );
 
       const extractedGraph: Graph = extractGraph(elements);
+      if (extractedGraph.nodes.length > 0) {
+        setShowOnboarding(false);
+        window.localStorage.setItem(ONBOARDING_DISMISSED_KEY, "1");
+      }
       const extractedWarnings: readonly GraphWarning[] = validateGraph(extractedGraph);
       // extractGraph/validateGraph build a brand-new object every call, even
       // when nothing actually changed — onChange fires continuously while
@@ -662,6 +687,21 @@ export function Canvas(): ReactNode {
           <ShareBanner onDuplicate={handleDuplicateToEdit} />
         ) : (
           <>
+            {showOnboarding && (
+              <div className="onboarding-tooltip" data-testid="onboarding-tooltip" role="status">
+                <span>
+                  Drag a component from the sidebar onto the canvas to start your first design.
+                </span>
+                <button
+                  type="button"
+                  aria-label="Dismiss"
+                  data-testid="onboarding-dismiss"
+                  onClick={handleDismissOnboarding}
+                >
+                  ×
+                </button>
+              </div>
+            )}
             <button
               type="button"
               className="debug-panel-toggle"
