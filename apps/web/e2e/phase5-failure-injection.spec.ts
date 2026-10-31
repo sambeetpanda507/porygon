@@ -162,4 +162,47 @@ test.describe("failure injection & scenario presets", () => {
       .locator('[data-testid$="-rps"]');
     await expect(serverRpsAfterCut).toHaveText("0 rps");
   });
+
+  test("a node's own Max RPS caps what it forwards downstream (real backpressure)", async ({ page }) => {
+    test.setTimeout(45_000);
+    await page.goto("/design");
+    const canvas = page.locator("canvas.excalidraw__canvas").first();
+    await canvas.waitFor({ state: "visible" });
+    const box = await canvas.boundingBox();
+    if (!box) throw new Error("canvas has no bounding box");
+
+    const client = { x: 260, y: 150 };
+    const server = { x: 260, y: 400 };
+
+    await dragComponentOntoCanvas(page, "client", box, client.x, client.y);
+    await dragComponentOntoCanvas(page, "server-vm", box, server.x, server.y);
+    // Offset from each node's exact center (as in the kill-node test above)
+    // so the arrow doesn't sit directly on top of either node and can't be
+    // mistakenly selected instead of the node itself.
+    await drawBoundArrow(page, box, client.x - 20, client.y, server.x - 20, server.y);
+
+    // Cap the client's own Max RPS well below the default scenario's
+    // target rate, so it can only ever forward a fraction of what it's
+    // offered.
+    await selectPoint(page, box, client.x, client.y);
+    await expect(page.getByTestId("inspector-label")).toHaveText("Client");
+    const maxRpsInput = page.getByTestId("inspector-edit-max-rps");
+    await maxRpsInput.fill("200");
+    await maxRpsInput.blur();
+    await expect(page.getByTestId("inspector-max-rps")).toHaveText("200");
+
+    await page.getByTestId("sim-play").click();
+
+    // Client is genuinely offered the full target rate, so it legitimately
+    // shows as overloaded at 10x its own capacity.
+    const clientRow = page.getByTestId("simulation-node-list").locator("li").filter({ hasText: "Client" });
+    await expect(clientRow.locator('[data-testid$="-status"]')).toHaveText("overloaded", { timeout: 15_000 });
+
+    // Server / VM should only ever receive what Client could actually
+    // forward (200 rps, its capped capacity) — not the full upstream
+    // demand — and so should be healthy, not falsely overloaded.
+    const serverRow = page.getByTestId("simulation-node-list").locator("li").filter({ hasText: "Server / VM" });
+    await expect(serverRow.locator('[data-testid$="-rps"]')).toHaveText("200 rps", { timeout: 15_000 });
+    await expect(serverRow.locator('[data-testid$="-status"]')).toHaveText("healthy");
+  });
 });
