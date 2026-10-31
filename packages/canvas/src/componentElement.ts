@@ -1,11 +1,12 @@
 // packages/canvas — turns a catalog ComponentDef into an Excalidraw element
 // skeleton, and reads it back off a dropped/selected element.
 import type { ExcalidrawElementSkeleton } from "@excalidraw/excalidraw/data/transform";
-import type { ComponentDef } from "@porygon/icons";
+import type { ComponentDef, ComponentStats } from "@porygon/icons";
 
 export interface PorygonCustomData {
   porygon: {
     componentId: string;
+    statsOverride?: ComponentStats;
   };
 }
 
@@ -46,6 +47,31 @@ export function getPorygonComponentId(element: {
     | PorygonCustomData["porygon"]
     | undefined;
   return porygonData?.componentId;
+}
+
+export function getPorygonStatsOverride(element: {
+  customData?: Record<string, unknown>;
+}): ComponentStats | undefined {
+  const porygonData = element.customData?.["porygon"] as
+    | PorygonCustomData["porygon"]
+    | undefined;
+  return porygonData?.statsOverride;
+}
+
+/**
+ * Returns a new customData object with the component's stats override set,
+ * preserving its componentId. Used to apply an edit made in the Inspector
+ * back onto the underlying Excalidraw element.
+ */
+export function withPorygonStatsOverride(
+  element: { customData?: Record<string, unknown> },
+  stats: ComponentStats,
+): Record<string, unknown> {
+  const componentId = getPorygonComponentId(element);
+  const customData: PorygonCustomData = {
+    porygon: { componentId: componentId ?? "", statsOverride: stats },
+  };
+  return { ...customData };
 }
 
 export const PORYGON_DRAG_MIME_TYPE = "application/x-porygon-component";

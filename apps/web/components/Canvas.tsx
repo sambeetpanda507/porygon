@@ -3,14 +3,7 @@
 import "@excalidraw/excalidraw/index.css";
 
 import dynamic from "next/dynamic";
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ReactNode,
-} from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import type {
   AppState,
   BinaryFiles,
@@ -19,11 +12,15 @@ import type {
 import type { OrderedExcalidrawElement } from "@excalidraw/excalidraw/element/types";
 import {
   createComponentSkeleton,
+  extractGraph,
   getPorygonComponentId,
+  getPorygonStatsOverride,
+  withPorygonStatsOverride,
   PORYGON_DRAG_MIME_TYPE,
 } from "@porygon/canvas";
-import { getComponentById, type ComponentDef } from "@porygon/icons";
-import { ComponentLibrary, Inspector } from "@porygon/ui";
+import { getComponentById, type ComponentDef, type ComponentStats } from "@porygon/icons";
+import { validateGraph, type Graph, type GraphWarning } from "@porygon/simulator";
+import { ComponentLibrary, GraphDebugPanel, Inspector } from "@porygon/ui";
 import { idbGet, idbSet } from "@/lib/db";
 
 const Excalidraw = dynamic(
@@ -40,9 +37,22 @@ interface StoredScene {
   files: BinaryFiles;
 }
 
+const EMPTY_GRAPH: Graph = { nodes: [], edges: [] };
+
+function graphsAreEqual(a: Graph, b: Graph): boolean {
+  return JSON.stringify(a) === JSON.stringify(b);
+}
+
 export function Canvas(): ReactNode {
   const [initialData, setInitialData] = useState<StoredScene | null | undefined>(undefined);
+  const [selectedElementId, setSelectedElementId] = useState<string | undefined>(undefined);
   const [selectedComponentId, setSelectedComponentId] = useState<string | undefined>(undefined);
+  const [selectedStatsOverride, setSelectedStatsOverride] = useState<ComponentStats | undefined>(
+    undefined,
+  );
+  const [graph, setGraph] = useState<Graph>(EMPTY_GRAPH);
+  const [warnings, setWarnings] = useState<readonly GraphWarning[]>([]);
+  const [showDebugPanel, setShowDebugPanel] = useState<boolean>(false);
   const saveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const excalidrawApiRef = useRef<ExcalidrawImperativeAPI | null>(null);
   const canvasWrapRef = useRef<HTMLDivElement | null>(null);
@@ -73,21 +83,64 @@ export function Canvas(): ReactNode {
         void idbSet(SCENE_KEY, scene);
       }, SAVE_DEBOUNCE_MS);
 
+      // Excalidraw can call onChange with the same top-level array
+      // reference it passed last time (elements are mutated in place
+      // internally, e.g. while resolving an arrow's binding), so storing
+      // `elements` itself in state and deriving things from it via
+      // useMemo would silently serve a stale result on later calls where
+      // the reference didn't change. Deriving everything synchronously,
+      // right here, from the live `elements` this call actually received
+      // avoids that entirely.
       const selectedIds: string[] = Object.keys(appState.selectedElementIds).filter(
         (id: string): boolean => appState.selectedElementIds[id] === true,
       );
-      if (selectedIds.length === 1) {
-        const selectedElement = elements.find(
-          (element: OrderedExcalidrawElement): boolean => element.id === selectedIds[0],
-        );
-        setSelectedComponentId(
-          selectedElement ? getPorygonComponentId(selectedElement) : undefined,
-        );
-      } else {
-        setSelectedComponentId(undefined);
-      }
+      const selectedId: string | undefined =
+        selectedIds.length === 1 ? selectedIds[0] : undefined;
+      setSelectedElementId(selectedId);
+
+      const selectedElement: OrderedExcalidrawElement | undefined = selectedId
+        ? elements.find((element: OrderedExcalidrawElement): boolean => element.id === selectedId)
+        : undefined;
+      setSelectedComponentId(
+        selectedElement ? getPorygonComponentId(selectedElement) : undefined,
+      );
+      setSelectedStatsOverride(
+        selectedElement ? getPorygonStatsOverride(selectedElement) : undefined,
+      );
+
+      const extractedGraph: Graph = extractGraph(elements);
+      const extractedWarnings: readonly GraphWarning[] = validateGraph(extractedGraph);
+      // extractGraph/validateGraph build a brand-new object every call, even
+      // when nothing actually changed — onChange fires continuously while
+      // dragging, so setting state unconditionally here re-renders on every
+      // single one of those calls. Keeping the previous reference when the
+      // content is unchanged lets React bail out instead.
+      setGraph((previous: Graph): Graph =>
+        graphsAreEqual(previous, extractedGraph) ? previous : extractedGraph,
+      );
+      setWarnings((previous: readonly GraphWarning[]): readonly GraphWarning[] =>
+        JSON.stringify(previous) === JSON.stringify(extractedWarnings) ? previous : extractedWarnings,
+      );
     },
     [],
+  );
+
+  const handleStatsChange = useCallback(
+    (stats: ComponentStats): void => {
+      const api: ExcalidrawImperativeAPI | null = excalidrawApiRef.current;
+      if (!api || !selectedElementId) {
+        return;
+      }
+      const existingElements: readonly OrderedExcalidrawElement[] = api.getSceneElements();
+      const updatedElements = existingElements.map(
+        (element: OrderedExcalidrawElement): OrderedExcalidrawElement =>
+          element.id === selectedElementId
+            ? { ...element, customData: withPorygonStatsOverride(element, stats) }
+            : element,
+      );
+      api.updateScene({ elements: updatedElements });
+    },
+    [selectedElementId],
   );
 
   // Drop handling is wired via a native, capture-phase listener instead of a
@@ -158,9 +211,12 @@ export function Canvas(): ReactNode {
     };
   }, [initialData]);
 
-  const inspectorPanel: ReactNode = useMemo(
-    () => <Inspector selectedComponentId={selectedComponentId} />,
-    [selectedComponentId],
+  const inspectorPanel: ReactNode = (
+    <Inspector
+      selectedComponentId={selectedComponentId}
+      statsOverride={selectedStatsOverride}
+      onStatsChange={handleStatsChange}
+    />
   );
 
   if (initialData === undefined) {
@@ -178,6 +234,15 @@ export function Canvas(): ReactNode {
           initialData={initialData ?? undefined}
           onChange={handleChange}
         />
+        <button
+          type="button"
+          className="debug-panel-toggle"
+          data-testid="debug-panel-toggle"
+          onClick={() => setShowDebugPanel((shown: boolean): boolean => !shown)}
+        >
+          {showDebugPanel ? "Hide graph debug" : "Graph debug"}
+        </button>
+        {showDebugPanel && <GraphDebugPanel graph={graph} warnings={warnings} />}
       </div>
       {inspectorPanel}
     </div>

@@ -218,3 +218,111 @@ body {
   font-weight: 600;
   color: #1b1b1f;
 }
+
+.inspector-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #e6e8eb;
+}
+
+.inspector-edit-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #9aa0ac;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.inspector-edit-field input {
+  height: 30px;
+  border-radius: 6px;
+  border: 1px solid #e6e8eb;
+  padding: 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1b1b1f;
+}
+
+/* ---- Graph debug panel ---- */
+.debug-panel-toggle {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 5;
+  height: 30px;
+  border-radius: 6px;
+  border: 1px solid #e6e8eb;
+  background: #ffffff;
+  padding: 0 10px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #1b1b1f;
+  cursor: pointer;
+}
+
+.debug-panel {
+  position: absolute;
+  top: 50px;
+  right: 12px;
+  z-index: 5;
+  width: 260px;
+  max-height: calc(100% - 70px);
+  overflow-y: auto;
+  background: #ffffff;
+  border: 1px solid #e6e8eb;
+  border-radius: 10px;
+  padding: 14px;
+  font-size: 12px;
+}
+
+.debug-panel-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1b1b1f;
+  margin-bottom: 10px;
+}
+
+.debug-panel-section {
+  margin-bottom: 10px;
+}
+
+.debug-panel-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: #9aa0ac;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  margin-bottom: 4px;
+}
+
+.debug-panel-value {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1b1b1f;
+}
+
+.debug-edge-list,
+.debug-warning-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: #1b1b1f;
+}
+
+.debug-panel-warnings {
+  color: #92400e;
+}
+
+.debug-panel-warnings .debug-warning-list {
+  color: #92400e;
+}
