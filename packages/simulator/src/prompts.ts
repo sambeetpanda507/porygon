@@ -2,7 +2,7 @@
 // (Phase 6). The actual prompt content is static data that lives in the
 // app (apps/web/content/prompts.ts) rather than here, since it's product
 // copy, not simulation logic; this type is shared so the app and
-// @porygon/ui agree on its shape. `scenarioId` reuses an existing
+// @p0rygon/ui agree on its shape. `scenarioId` reuses an existing
 // ScenarioPreset instead of duplicating traffic-profile math.
 export interface ScenarioPrompt {
   id: string;

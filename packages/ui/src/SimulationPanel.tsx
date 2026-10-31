@@ -1,7 +1,7 @@
 "use client";
 
 import type { ChangeEvent, ReactNode } from "react";
-import { SCENARIO_PRESETS, summarizeTick, type Graph, type SimulationTick } from "@porygon/simulator";
+import { SCENARIO_PRESETS, summarizeTick, type Graph, type SimulationTick } from "@p0rygon/simulator";
 
 export type SimulationStatus = "idle" | "running" | "paused";
 

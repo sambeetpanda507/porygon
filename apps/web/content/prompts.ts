@@ -2,7 +2,7 @@
 // in-repo, no DB or CMS: each prompt pairs a classic interview question
 // with a self-review checklist and an existing simulator scenario preset
 // to run the finished design against.
-import type { ScenarioPrompt } from "@porygon/simulator";
+import type { ScenarioPrompt } from "@p0rygon/simulator";
 
 export const SCENARIO_PROMPTS: readonly ScenarioPrompt[] = [
   {

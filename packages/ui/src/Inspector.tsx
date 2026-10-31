@@ -7,8 +7,8 @@ import {
   getComponentStats,
   type ComponentDef,
   type ComponentStats,
-} from "@porygon/icons";
-import { FAILURE_LABELS, type FailureInjection, type FailureType } from "@porygon/simulator";
+} from "@p0rygon/icons";
+import { FAILURE_LABELS, type FailureInjection, type FailureType } from "@p0rygon/simulator";
 
 export interface InspectorProps {
   selectedComponentId: string | undefined;

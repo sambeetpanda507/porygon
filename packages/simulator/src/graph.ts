@@ -1,7 +1,7 @@
 // packages/simulator — the graph input format the simulation engine (Phase
 // 4/5) will run on. Populated here in Phase 3 by the canvas's graph
 // extraction layer; the simulator itself still lands in a later phase.
-import type { ComponentStats } from "@porygon/icons";
+import type { ComponentStats } from "@p0rygon/icons";
 
 export interface GraphNode {
   id: string;

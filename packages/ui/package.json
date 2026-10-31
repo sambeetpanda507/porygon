@@ -1,13 +1,13 @@
 {
-  "name": "@porygon/ui",
+  "name": "@p0rygon/ui",
   "private": true,
   "version": "0.1.0",
   "main": "src/index.ts",
   "types": "src/index.ts",
   "dependencies": {
-    "@porygon/canvas": "workspace:*",
-    "@porygon/icons": "workspace:*",
-    "@porygon/simulator": "workspace:*",
+    "@p0rygon/canvas": "workspace:*",
+    "@p0rygon/icons": "workspace:*",
+    "@p0rygon/simulator": "workspace:*",
     "react": "19.3.1"
   },
   "devDependencies": {

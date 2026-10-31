@@ -3,7 +3,7 @@
 // red/overloaded, plus dark gray for a killed node). Kept separate from a
 // component's own catalog color, which is restored once the simulation
 // resets.
-import type { NodeStatus } from "@porygon/simulator";
+import type { NodeStatus } from "@p0rygon/simulator";
 
 export const NODE_STATUS_COLORS: Record<NodeStatus, string> = {
   healthy: "#2f9e44",

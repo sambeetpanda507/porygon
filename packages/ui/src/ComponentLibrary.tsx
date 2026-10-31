@@ -1,8 +1,8 @@
 "use client";
 
 import { useMemo, useState, type DragEvent, type ReactNode } from "react";
-import { CATEGORIES, COMPONENTS, type CategoryDef, type ComponentDef } from "@porygon/icons";
-import { PORYGON_DRAG_MIME_TYPE } from "@porygon/canvas";
+import { CATEGORIES, COMPONENTS, type CategoryDef, type ComponentDef } from "@p0rygon/icons";
+import { P0RYGON_DRAG_MIME_TYPE } from "@p0rygon/canvas";
 
 function matches(component: ComponentDef, query: string): boolean {
   if (query === "") {
@@ -68,7 +68,7 @@ export function ComponentLibrary(): ReactNode {
                       aria-label={`${component.label} — drag onto the canvas to add it`}
                       data-testid={`component-chip-${component.id}`}
                       onDragStart={(event: DragEvent<HTMLDivElement>): void => {
-                        event.dataTransfer.setData(PORYGON_DRAG_MIME_TYPE, component.id);
+                        event.dataTransfer.setData(P0RYGON_DRAG_MIME_TYPE, component.id);
                         event.dataTransfer.setData("text/plain", component.label);
                         event.dataTransfer.effectAllowed = "copy";
                       }}

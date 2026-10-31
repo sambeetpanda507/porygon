@@ -13,13 +13,13 @@ import type { OrderedExcalidrawElement } from "@excalidraw/excalidraw/element/ty
 import {
   createComponentSkeleton,
   extractGraph,
-  getPorygonComponentId,
-  getPorygonStatsOverride,
-  withPorygonStatsOverride,
+  getP0rygonComponentId,
+  getP0rygonStatsOverride,
+  withP0rygonStatsOverride,
   NODE_STATUS_COLORS,
-  PORYGON_DRAG_MIME_TYPE,
-} from "@porygon/canvas";
-import { getComponentById, type ComponentDef, type ComponentStats } from "@porygon/icons";
+  P0RYGON_DRAG_MIME_TYPE,
+} from "@p0rygon/canvas";
+import { getComponentById, type ComponentDef, type ComponentStats } from "@p0rygon/icons";
 import {
   getScenarioById,
   validateGraph,
@@ -31,7 +31,7 @@ import {
   type ScenarioPrompt,
   type SimulationTick,
   type TrafficSpec,
-} from "@porygon/simulator";
+} from "@p0rygon/simulator";
 import {
   ComponentLibrary,
   GraphDebugPanel,
@@ -40,8 +40,8 @@ import {
   ShareBanner,
   SharingPanel,
   SimulationPanel,
-} from "@porygon/ui";
-import type { SimulationStatus, VersionSummary } from "@porygon/ui";
+} from "@p0rygon/ui";
+import type { SimulationStatus, VersionSummary } from "@p0rygon/ui";
 import { SCENARIO_PROMPTS } from "@/content/prompts";
 import { idbGet, idbSet } from "@/lib/db";
 import { buildShareUrl, decodeBase64ToScene, getShareParamFromLocation } from "@/lib/sharing";
@@ -58,9 +58,9 @@ const Excalidraw = dynamic(
   { ssr: false },
 );
 
-const SCENE_KEY = "porygon-scene";
-const VERSIONS_KEY = "porygon-versions";
-const ONBOARDING_DISMISSED_KEY = "porygon-onboarding-dismissed";
+const SCENE_KEY = "p0rygon-scene";
+const VERSIONS_KEY = "p0rygon-versions";
+const ONBOARDING_DISMISSED_KEY = "p0rygon-onboarding-dismissed";
 const SAVE_DEBOUNCE_MS = 300;
 const COPY_FEEDBACK_MS = 2_000;
 
@@ -240,10 +240,10 @@ export function Canvas(): ReactNode {
         ? elements.find((element: OrderedExcalidrawElement): boolean => element.id === selectedId)
         : undefined;
       setSelectedComponentId(
-        selectedElement ? getPorygonComponentId(selectedElement) : undefined,
+        selectedElement ? getP0rygonComponentId(selectedElement) : undefined,
       );
       setSelectedStatsOverride(
-        selectedElement ? getPorygonStatsOverride(selectedElement) : undefined,
+        selectedElement ? getP0rygonStatsOverride(selectedElement) : undefined,
       );
       setSelectedEdgeId(
         selectedElement && selectedElement.type === "arrow" ? selectedElement.id : undefined,
@@ -280,7 +280,7 @@ export function Canvas(): ReactNode {
       const updatedElements = existingElements.map(
         (element: OrderedExcalidrawElement): OrderedExcalidrawElement =>
           element.id === selectedElementId
-            ? { ...element, customData: withPorygonStatsOverride(element, stats) }
+            ? { ...element, customData: withP0rygonStatsOverride(element, stats) }
             : element,
       );
       api.updateScene({ elements: updatedElements });
@@ -298,7 +298,7 @@ export function Canvas(): ReactNode {
       return;
     }
     for (const element of api.getSceneElements()) {
-      if (getPorygonComponentId(element) && !originalColorsRef.current.has(element.id)) {
+      if (getP0rygonComponentId(element) && !originalColorsRef.current.has(element.id)) {
         originalColorsRef.current.set(element.id, {
           backgroundColor: element.backgroundColor,
           strokeColor: element.strokeColor,
@@ -508,7 +508,7 @@ export function Canvas(): ReactNode {
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
-    anchor.download = "diagram.porygon";
+    anchor.download = "diagram.p0rygon";
     anchor.click();
     URL.revokeObjectURL(url);
   }, [buildPortableScene]);
@@ -611,7 +611,7 @@ export function Canvas(): ReactNode {
     }
 
     function handleDragOver(event: DragEvent): void {
-      if (event.dataTransfer?.types.includes(PORYGON_DRAG_MIME_TYPE)) {
+      if (event.dataTransfer?.types.includes(P0RYGON_DRAG_MIME_TYPE)) {
         event.preventDefault();
         if (event.dataTransfer) {
           event.dataTransfer.dropEffect = "copy";
@@ -621,7 +621,7 @@ export function Canvas(): ReactNode {
 
     async function handleDrop(event: DragEvent): Promise<void> {
       const componentId: string | undefined = event.dataTransfer?.getData(
-        PORYGON_DRAG_MIME_TYPE,
+        P0RYGON_DRAG_MIME_TYPE,
       );
       const api: ExcalidrawImperativeAPI | null = excalidrawApiRef.current;
       if (!componentId || !api) {

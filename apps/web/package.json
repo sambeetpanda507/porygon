@@ -1,5 +1,5 @@
 {
-  "name": "@porygon/web",
+  "name": "@p0rygon/web",
   "private": true,
   "version": "0.1.0",
   "scripts": {
@@ -11,10 +11,10 @@
   },
   "dependencies": {
     "@excalidraw/excalidraw": "0.18.1",
-    "@porygon/canvas": "workspace:*",
-    "@porygon/icons": "workspace:*",
-    "@porygon/simulator": "workspace:*",
-    "@porygon/ui": "workspace:*",
+    "@p0rygon/canvas": "workspace:*",
+    "@p0rygon/icons": "workspace:*",
+    "@p0rygon/simulator": "workspace:*",
+    "@p0rygon/ui": "workspace:*",
     "next": "16.4.3",
     "react": "19.3.1",
     "react-dom": "19.3.1"

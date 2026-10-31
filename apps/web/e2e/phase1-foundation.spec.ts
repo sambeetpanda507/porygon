@@ -1,11 +1,11 @@
 import { expect, test, type Page } from "@playwright/test";
 
-const SCENE_KEY = "porygon-scene";
+const SCENE_KEY = "p0rygon-scene";
 
 async function readStoredElementCount(page: Page): Promise<number> {
   return page.evaluate(async (key: string) => {
     const db: IDBDatabase = await new Promise((resolve, reject) => {
-      const request: IDBOpenDBRequest = indexedDB.open("porygon", 1);
+      const request: IDBOpenDBRequest = indexedDB.open("p0rygon", 1);
       request.onsuccess = (): void => resolve(request.result);
       request.onerror = (): void => reject(request.error);
     });

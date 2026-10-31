@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Porygon",
+  title: "P0rygon",
   description: "Design systems on a whiteboard. Then watch them break.",
 };
 

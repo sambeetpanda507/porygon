@@ -25,7 +25,7 @@ jobs:
         run: pnpm build
 
       - name: Install Playwright browsers
-        run: pnpm --filter @porygon/web exec playwright install --with-deps chromium
+        run: pnpm --filter @p0rygon/web exec playwright install --with-deps chromium
 
       - name: Run e2e tests
         run: pnpm test:e2e

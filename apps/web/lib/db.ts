@@ -3,7 +3,7 @@
  * object store, so a tiny hand-rolled wrapper beats pulling in a dependency.
  */
 
-const DB_NAME = "porygon";
+const DB_NAME = "p0rygon";
 const DB_VERSION = 1;
 const STORE_NAME = "kv";
 

@@ -1,10 +1,10 @@
 // packages/canvas — turns a catalog ComponentDef into an Excalidraw element
 // skeleton, and reads it back off a dropped/selected element.
 import type { ExcalidrawElementSkeleton } from "@excalidraw/excalidraw/data/transform";
-import type { ComponentDef, ComponentStats } from "@porygon/icons";
+import type { ComponentDef, ComponentStats } from "@p0rygon/icons";
 
-export interface PorygonCustomData {
-  porygon: {
+export interface P0rygonCustomData {
+  p0rygon: {
     componentId: string;
     statsOverride?: ComponentStats;
   };
@@ -22,7 +22,7 @@ export function createComponentSkeleton(
   centerX: number,
   centerY: number,
 ): ExcalidrawElementSkeleton {
-  const customData: PorygonCustomData = { porygon: { componentId: component.id } };
+  const customData: P0rygonCustomData = { p0rygon: { componentId: component.id } };
   return {
     type: "rectangle",
     x: centerX - NODE_WIDTH / 2,
@@ -49,22 +49,22 @@ export function createComponentSkeleton(
   };
 }
 
-export function getPorygonComponentId(element: {
+export function getP0rygonComponentId(element: {
   customData?: Record<string, unknown>;
 }): string | undefined {
-  const porygonData = element.customData?.["porygon"] as
-    | PorygonCustomData["porygon"]
+  const p0rygonData = element.customData?.["p0rygon"] as
+    | P0rygonCustomData["p0rygon"]
     | undefined;
-  return porygonData?.componentId;
+  return p0rygonData?.componentId;
 }
 
-export function getPorygonStatsOverride(element: {
+export function getP0rygonStatsOverride(element: {
   customData?: Record<string, unknown>;
 }): ComponentStats | undefined {
-  const porygonData = element.customData?.["porygon"] as
-    | PorygonCustomData["porygon"]
+  const p0rygonData = element.customData?.["p0rygon"] as
+    | P0rygonCustomData["p0rygon"]
     | undefined;
-  return porygonData?.statsOverride;
+  return p0rygonData?.statsOverride;
 }
 
 /**
@@ -72,15 +72,15 @@ export function getPorygonStatsOverride(element: {
  * preserving its componentId. Used to apply an edit made in the Inspector
  * back onto the underlying Excalidraw element.
  */
-export function withPorygonStatsOverride(
+export function withP0rygonStatsOverride(
   element: { customData?: Record<string, unknown> },
   stats: ComponentStats,
 ): Record<string, unknown> {
-  const componentId = getPorygonComponentId(element);
-  const customData: PorygonCustomData = {
-    porygon: { componentId: componentId ?? "", statsOverride: stats },
+  const componentId = getP0rygonComponentId(element);
+  const customData: P0rygonCustomData = {
+    p0rygon: { componentId: componentId ?? "", statsOverride: stats },
   };
   return { ...customData };
 }
 
-export const PORYGON_DRAG_MIME_TYPE = "application/x-porygon-component";
+export const P0RYGON_DRAG_MIME_TYPE = "application/x-p0rygon-component";

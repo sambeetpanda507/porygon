@@ -44,15 +44,15 @@ export function SharingPanel({
       <div className="sharing-panel-title">Sharing</div>
 
       <div className="sharing-panel-row">
-        <button type="button" data-testid="export-porygon" onClick={onExport}>
-          Export .porygon
+        <button type="button" data-testid="export-p0rygon" onClick={onExport}>
+          Export .p0rygon
         </button>
         <label className="sharing-import-label">
-          Import .porygon
+          Import .p0rygon
           <input
             type="file"
-            accept=".porygon,.json,application/json"
-            data-testid="import-porygon-input"
+            accept=".p0rygon,.json,application/json"
+            data-testid="import-p0rygon-input"
             onChange={handleFileInputChange}
           />
         </label>

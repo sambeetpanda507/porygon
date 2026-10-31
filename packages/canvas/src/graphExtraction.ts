@@ -1,11 +1,11 @@
 // packages/canvas — reads an Excalidraw scene and extracts the typed graph
 // (nodes + directed edges from bound arrows) that packages/simulator runs
-// on. A node is any element tagged with a porygon componentId; an edge is
+// on. A node is any element tagged with a p0rygon componentId; an edge is
 // any arrow whose start and end are both bound to a tagged node.
 import type { ExcalidrawElement } from "@excalidraw/excalidraw/element/types";
-import { getComponentById, getComponentStats, type ComponentStats } from "@porygon/icons";
-import type { Graph, GraphEdge, GraphNode } from "@porygon/simulator";
-import { getPorygonComponentId, getPorygonStatsOverride } from "./componentElement";
+import { getComponentById, getComponentStats, type ComponentStats } from "@p0rygon/icons";
+import type { Graph, GraphEdge, GraphNode } from "@p0rygon/simulator";
+import { getP0rygonComponentId, getP0rygonStatsOverride } from "./componentElement";
 
 export function extractGraph(elements: readonly ExcalidrawElement[]): Graph {
   const nodes: GraphNode[] = [];
@@ -15,7 +15,7 @@ export function extractGraph(elements: readonly ExcalidrawElement[]): Graph {
     if (element.isDeleted) {
       continue;
     }
-    const componentId = getPorygonComponentId(element);
+    const componentId = getP0rygonComponentId(element);
     if (!componentId) {
       continue;
     }
@@ -23,7 +23,7 @@ export function extractGraph(elements: readonly ExcalidrawElement[]): Graph {
     if (!component) {
       continue;
     }
-    const stats: ComponentStats = getPorygonStatsOverride(element) ?? getComponentStats(component);
+    const stats: ComponentStats = getP0rygonStatsOverride(element) ?? getComponentStats(component);
     nodes.push({ id: element.id, componentId, label: component.label, stats });
     nodeIds.add(element.id);
   }

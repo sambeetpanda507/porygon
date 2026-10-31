@@ -1,5 +1,5 @@
 /**
- * Phase 7 — turning a scene into portable text, for both the .porygon
+ * Phase 7 — turning a scene into portable text, for both the .p0rygon
  * export file and the share link. Plain base64 of the JSON (via
  * TextEncoder/TextDecoder, not btoa/atob directly, since labels contain
  * emoji outside the Latin1 range btoa alone can't handle) — no compression

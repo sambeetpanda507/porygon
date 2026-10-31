@@ -1,6 +1,6 @@
 import type { CSSProperties, ReactNode } from "react";
 import Link from "next/link";
-import { getComponentById, type ComponentDef } from "@porygon/icons";
+import { getComponentById, type ComponentDef } from "@p0rygon/icons";
 import "./landing.css";
 
 const FEATURES: ReadonlyArray<{ color: string; glyph: string; title: string; body: string }> = [
@@ -38,7 +38,7 @@ const FEATURES: ReadonlyArray<{ color: string; glyph: string; title: string; bod
     color: "#0EA5E9",
     glyph: "⇄",
     title: "Share without an account",
-    body: "Export a .porygon file or copy a read-only share link — no sign-up, no server-side account, nothing to lose if you clear your browser except what you export.",
+    body: "Export a .p0rygon file or copy a read-only share link — no sign-up, no server-side account, nothing to lose if you clear your browser except what you export.",
   },
 ];
 
@@ -124,7 +124,7 @@ export default function HomePage(): ReactNode {
       <header className="landing-nav">
         <div className="landing-logo">
           <div className="landing-logo-badge">P</div>
-          Porygon
+          P0rygon
         </div>
         <div className="landing-nav-spacer" />
         <Link href="/design" className="landing-btn-primary">
@@ -141,7 +141,7 @@ export default function HomePage(): ReactNode {
             Then <span>watch them break.</span>
           </h1>
           <p>
-            Porygon is a drag-and-drop whiteboard for system design — draw your architecture with load balancers, databases, caches and queues, then
+            P0rygon is a drag-and-drop whiteboard for system design — draw your architecture with load balancers, databases, caches and queues, then
             simulate real traffic, spikes and failures to see exactly what happens.
           </p>
           <div className="landing-hero-ctas">
@@ -344,7 +344,7 @@ export default function HomePage(): ReactNode {
         </section>
 
         <section className="landing-section" id="features" style={{ background: "#FAFAFB" }}>
-          <div className="landing-section-eyebrow">Why Porygon</div>
+          <div className="landing-section-eyebrow">Why P0rygon</div>
           <h2 className="landing-section-title">Everything a whiteboard needs — plus a pulse</h2>
           <p className="landing-section-sub">
             All the free-form drawing of Excalidraw, with a simulation layer that turns a static diagram into a living system you can stress-test.
@@ -387,7 +387,7 @@ export default function HomePage(): ReactNode {
         </section>
       </main>
 
-      <footer className="landing-footer">Porygon is local-first — no accounts, nothing stored on a server unless you export it.</footer>
+      <footer className="landing-footer">P0rygon is local-first — no accounts, nothing stored on a server unless you export it.</footer>
     </div>
   );
 }

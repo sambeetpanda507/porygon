@@ -13,16 +13,16 @@ importers:
       '@excalidraw/excalidraw':
         specifier: 0.18.1
         version: 0.18.1(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
-      '@porygon/canvas':
+      '@p0rygon/canvas':
         specifier: workspace:*
         version: link:../../packages/canvas
-      '@porygon/icons':
+      '@p0rygon/icons':
         specifier: workspace:*
         version: link:../../packages/icons
-      '@porygon/simulator':
+      '@p0rygon/simulator':
         specifier: workspace:*
         version: link:../../packages/simulator
-      '@porygon/ui':
+      '@p0rygon/ui':
         specifier: workspace:*
         version: link:../../packages/ui
       next:
@@ -56,10 +56,10 @@ importers:
       '@excalidraw/excalidraw':
         specifier: 0.18.1
         version: 0.18.1(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
-      '@porygon/icons':
+      '@p0rygon/icons':
         specifier: workspace:*
         version: link:../icons
-      '@porygon/simulator':
+      '@p0rygon/simulator':
         specifier: workspace:*
         version: link:../simulator
 
@@ -67,19 +67,19 @@ importers:
 
   packages/simulator:
     dependencies:
-      '@porygon/icons':
+      '@p0rygon/icons':
         specifier: workspace:*
         version: link:../icons
 
   packages/ui:
     dependencies:
-      '@porygon/canvas':
+      '@p0rygon/canvas':
         specifier: workspace:*
         version: link:../canvas
-      '@porygon/icons':
+      '@p0rygon/icons':
         specifier: workspace:*
         version: link:../icons
-      '@porygon/simulator':
+      '@p0rygon/simulator':
         specifier: workspace:*
         version: link:../simulator
       react:

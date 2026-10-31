@@ -1,6 +1,6 @@
 # Deployment Plan
 
-Porygon is **local-first**: the app itself needs no database, no server-side session storage, and no secrets at runtime — every diagram, share link, and simulation run lives in the visitor's own browser. That makes deployment close to "ship a Next.js app" with nothing extra to provision.
+P0rygon is **local-first**: the app itself needs no database, no server-side session storage, and no secrets at runtime — every diagram, share link, and simulation run lives in the visitor's own browser. That makes deployment close to "ship a Next.js app" with nothing extra to provision.
 
 The one thing that does require a real Next.js server runtime (not a pure static export) is the favicon/app-icon generation in [apps/web/app/icon.tsx](apps/web/app/icon.tsx) and [apps/web/app/apple-icon.tsx](apps/web/app/apple-icon.tsx), which use `next/og`'s `ImageResponse`. So: deploy as a standard Next.js app, not `next export`.
 
@@ -12,7 +12,7 @@ The one thing that does require a real Next.js server runtime (not a pure static
 
 ## 2. Monorepo build configuration
 
-This is a pnpm workspace ([pnpm-workspace.yaml](pnpm-workspace.yaml)) with the Next.js app at `apps/web` and four workspace packages (`@porygon/canvas`, `@porygon/icons`, `@porygon/simulator`, `@porygon/ui`) consumed via `transpilePackages` in [apps/web/next.config.ts](apps/web/next.config.ts) — they're built from source at Next's build time, not pre-compiled, so no separate package build step is needed.
+This is a pnpm workspace ([pnpm-workspace.yaml](pnpm-workspace.yaml)) with the Next.js app at `apps/web` and four workspace packages (`@p0rygon/canvas`, `@p0rygon/icons`, `@p0rygon/simulator`, `@p0rygon/ui`) consumed via `transpilePackages` in [apps/web/next.config.ts](apps/web/next.config.ts) — they're built from source at Next's build time, not pre-compiled, so no separate package build step is needed.
 
 On Vercel:
 
@@ -54,8 +54,8 @@ The existing [.github/workflows/ci.yml](.github/workflows/ci.yml) already runs `
 
 ```sh
 pnpm install --frozen-lockfile
-pnpm --filter @porygon/web build
-pnpm --filter @porygon/web start   # runs `next start`, defaults to port 3000
+pnpm --filter @p0rygon/web build
+pnpm --filter @p0rygon/web start   # runs `next start`, defaults to port 3000
 ```
 
 Put this behind a reverse proxy (nginx/Caddy) for TLS termination, and run it under a process supervisor (systemd, pm2, or a container orchestrator) so it restarts on crash/reboot.

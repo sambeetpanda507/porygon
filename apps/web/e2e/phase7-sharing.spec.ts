@@ -28,7 +28,7 @@ async function dragComponentOntoCanvas(
 }
 
 test.describe("sharing & local persistence", () => {
-  test("export then import a .porygon file reconstructs the diagram", async ({ page }) => {
+  test("export then import a .p0rygon file reconstructs the diagram", async ({ page }) => {
     test.setTimeout(45_000);
     await page.goto("/design");
     const canvas = page.locator("canvas.excalidraw__canvas").first();
@@ -42,9 +42,9 @@ test.describe("sharing & local persistence", () => {
 
     await page.getByTestId("sharing-panel-toggle").click();
     const downloadPromise = page.waitForEvent("download");
-    await page.getByTestId("export-porygon").click();
+    await page.getByTestId("export-p0rygon").click();
     const download = await downloadPromise;
-    expect(download.suggestedFilename()).toBe("diagram.porygon");
+    expect(download.suggestedFilename()).toBe("diagram.p0rygon");
     const filePath = await download.path();
     if (!filePath) throw new Error("download has no path");
 
@@ -57,11 +57,11 @@ test.describe("sharing & local persistence", () => {
     // connection and explicitly closing it after the write avoids that.
     await page.evaluate(() => {
       return new Promise<void>((resolve, reject) => {
-        const openRequest = indexedDB.open("porygon", 1);
+        const openRequest = indexedDB.open("p0rygon", 1);
         openRequest.onsuccess = (): void => {
           const db = openRequest.result;
           const tx = db.transaction("kv", "readwrite");
-          tx.objectStore("kv").delete("porygon-scene");
+          tx.objectStore("kv").delete("p0rygon-scene");
           tx.oncomplete = (): void => {
             db.close();
             resolve();
@@ -81,7 +81,7 @@ test.describe("sharing & local persistence", () => {
     await page.getByTestId("debug-panel-toggle").click();
 
     await page.getByTestId("sharing-panel-toggle").click();
-    await page.getByTestId("import-porygon-input").setInputFiles(filePath);
+    await page.getByTestId("import-p0rygon-input").setInputFiles(filePath);
     await page.waitForTimeout(300);
 
     await page.getByTestId("debug-panel-toggle").click();

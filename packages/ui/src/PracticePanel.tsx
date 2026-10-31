@@ -1,7 +1,7 @@
 "use client";
 
 import type { ChangeEvent, ReactNode } from "react";
-import type { ScenarioPrompt } from "@porygon/simulator";
+import type { ScenarioPrompt } from "@p0rygon/simulator";
 
 export interface PracticePanelProps {
   prompts: readonly ScenarioPrompt[];

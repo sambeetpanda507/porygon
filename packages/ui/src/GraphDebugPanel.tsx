@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import type { Graph, GraphWarning } from "@porygon/simulator";
+import type { Graph, GraphWarning } from "@p0rygon/simulator";
 
 export interface GraphDebugPanelProps {
   graph: Graph;

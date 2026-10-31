@@ -2,7 +2,7 @@
 // an otherwise-normal tick, per plan.md 5.2 ("kill a node, degrade a node,
 // partition the network, exhaust a cache, fill a queue, throttle a
 // dependency").
-import type { ComponentStats } from "@porygon/icons";
+import type { ComponentStats } from "@p0rygon/icons";
 
 export type FailureType =
   | "kill-node"

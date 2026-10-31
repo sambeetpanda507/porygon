@@ -1,6 +1,6 @@
 // Runs the tick engine off the main thread so the canvas stays responsive
 // while a simulation is playing. Framework-agnostic by design: all the
-// actual math lives in @porygon/simulator, which has no DOM dependency and
+// actual math lives in @p0rygon/simulator, which has no DOM dependency and
 // is safe to import into a worker.
 import {
   computeTick,
@@ -8,7 +8,7 @@ import {
   type Graph,
   type SimulationTick,
   type TrafficSpec,
-} from "@porygon/simulator";
+} from "@p0rygon/simulator";
 
 export interface StartCommand {
   type: "start";

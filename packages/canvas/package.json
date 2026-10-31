@@ -1,12 +1,12 @@
 {
-  "name": "@porygon/canvas",
+  "name": "@p0rygon/canvas",
   "private": true,
   "version": "0.1.0",
   "main": "src/index.ts",
   "types": "src/index.ts",
   "dependencies": {
     "@excalidraw/excalidraw": "0.18.1",
-    "@porygon/icons": "workspace:*",
-    "@porygon/simulator": "workspace:*"
+    "@p0rygon/icons": "workspace:*",
+    "@p0rygon/simulator": "workspace:*"
   }
 }
