@@ -464,22 +464,24 @@ export function Canvas(): ReactNode {
     };
   }, []);
 
-  // appState.collaborators is a Map at runtime; JSON.stringify silently
-  // turns it into a plain "{}", and Excalidraw's own merge logic then
-  // crashes calling .forEach on it when that gets fed back in as
-  // initialData. Only JSON-serialized paths (export, share link) need
-  // this — idbSet uses IndexedDB's structured clone, which preserves Maps
-  // natively, so version snapshots are unaffected.
+  // AppState carries several fields that are Maps/Sets/host objects at
+  // runtime (collaborators, followedBy, fileHandle, ...) — JSON.stringify
+  // silently turns a Map/Set into "{}", and Excalidraw's own merge logic
+  // then crashes (e.g. calling .forEach on it) when that comes back in as
+  // initialData. Stripping known offenders one at a time is a losing game
+  // (we already missed "followedBy" once), so portable scenes just drop
+  // appState entirely — Excalidraw's own defaults are perfectly fine for a
+  // freshly opened export or share link, which never needs to carry the
+  // exporting user's scroll position/selection/collaborators anyway. Only
+  // JSON-serialized paths (export, share link) need this — idbSet uses
+  // IndexedDB's structured clone, which preserves Maps/Sets natively, so
+  // version snapshots are unaffected and keep the full appState.
   const buildPortableScene = useCallback((): StoredScene | null => {
     const scene: StoredScene | null = buildCurrentScene();
     if (!scene) {
       return null;
     }
-    const { collaborators: _collaborators, ...restAppState } = scene.appState as Record<
-      string,
-      unknown
-    >;
-    return { ...scene, appState: restAppState as Partial<AppState> };
+    return { ...scene, appState: {} };
   }, [buildCurrentScene]);
 
   const handleExport = useCallback((): void => {
