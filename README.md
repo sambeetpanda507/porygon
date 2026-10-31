@@ -41,7 +41,6 @@ porygon/
 │   ├── simulator/        # Traffic & failure simulation engine (framework-agnostic)
 │   ├── icons/            # System-design component/icon catalog
 │   └── ui/               # Shared UI panels (Inspector, Simulation, Practice, Sharing, etc.)
-└── design/                # Static HTML mockups used as the visual reference
 ```
 
 ## Getting started
