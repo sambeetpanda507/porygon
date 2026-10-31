@@ -212,4 +212,25 @@ test.describe("traffic simulation", () => {
     await page.mouse.move(box.x + 50, box.y + 50, { steps: 5 });
     await expect(page.getByTestId("node-hover-tooltip")).toHaveCount(0);
   });
+
+  test("the chevron collapses and expands the simulation panel", async ({ page }) => {
+    await page.goto("/design");
+    const canvas = page.locator("canvas.excalidraw__canvas").first();
+    await canvas.waitFor({ state: "visible" });
+
+    const toggle = page.getByTestId("simulation-collapse-toggle");
+    const scenarioField = page.getByTestId("scenario-select");
+
+    // Expanded by default.
+    await expect(toggle).toHaveAttribute("aria-expanded", "true");
+    await expect(scenarioField).toBeVisible();
+
+    await toggle.click();
+    await expect(toggle).toHaveAttribute("aria-expanded", "false");
+    await expect(scenarioField).toHaveCount(0);
+
+    await toggle.click();
+    await expect(toggle).toHaveAttribute("aria-expanded", "true");
+    await expect(scenarioField).toBeVisible();
+  });
 });

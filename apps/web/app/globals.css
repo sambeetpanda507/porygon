@@ -379,7 +379,11 @@ body {
   left: 12px;
   z-index: 5;
   width: 300px;
-  max-height: calc(100% - 24px);
+  /* Anchored from the bottom and growing upward with every extra node, so
+     its max-height has to leave room for the Practice mode toggle sharing
+     this same top-left corner (top:12px, 30px tall) plus a gap — otherwise
+     a large graph's node list grows tall enough to sit on top of it. */
+  max-height: calc(100% - 66px);
   overflow-y: auto;
   background: #ffffff;
   border: 1px solid #e6e8eb;
@@ -403,9 +407,33 @@ body {
   text-transform: capitalize;
 }
 
+.simulation-panel-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .simulation-controls {
   display: flex;
   gap: 6px;
+}
+
+.simulation-panel-collapse {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  border-radius: 6px;
+  border: 1px solid #e6e8eb;
+  background: #f7f8fa;
+  color: #1b1b1f;
+  cursor: pointer;
+}
+
+.simulation-panel-collapse svg {
+  transition: transform 0.15s ease;
 }
 
 .simulation-controls button {

@@ -1,6 +1,6 @@
 "use client";
 
-import type { ChangeEvent, ReactNode } from "react";
+import { useState, type ChangeEvent, type ReactNode } from "react";
 import { SCENARIO_PRESETS, summarizeTick, type Graph, type SimulationTick } from "@p0rygon/simulator";
 
 export type SimulationStatus = "idle" | "running" | "paused";
@@ -49,6 +49,8 @@ export function SimulationPanel({
   scenarioId,
   onScenarioChange,
 }: SimulationPanelProps): ReactNode {
+  const [collapsed, setCollapsed] = useState<boolean>(false);
+
   function handleScenarioChange(event: ChangeEvent<HTMLSelectElement>): void {
     onScenarioChange(event.target.value);
   }
@@ -59,69 +61,97 @@ export function SimulationPanel({
         <div className="simulation-panel-title" data-testid="simulation-status">
           Simulation: {status}
         </div>
-        <div className="simulation-controls">
+        <div className="simulation-panel-header-actions">
+          <div className="simulation-controls">
+            <button
+              type="button"
+              data-testid="sim-play"
+              onClick={onPlay}
+              disabled={status === "running" || graph.nodes.length === 0}
+            >
+              Simulate
+            </button>
+            <button type="button" data-testid="sim-pause" onClick={onPause} disabled={status !== "running"}>
+              Pause
+            </button>
+            <button type="button" data-testid="sim-reset" onClick={onReset} disabled={status === "idle"}>
+              Reset
+            </button>
+          </div>
           <button
             type="button"
-            data-testid="sim-play"
-            onClick={onPlay}
-            disabled={status === "running" || graph.nodes.length === 0}
+            className="simulation-panel-collapse"
+            data-testid="simulation-collapse-toggle"
+            aria-expanded={!collapsed}
+            aria-label={collapsed ? "Expand simulation panel" : "Collapse simulation panel"}
+            onClick={() => setCollapsed((previous: boolean): boolean => !previous)}
           >
-            Simulate
-          </button>
-          <button type="button" data-testid="sim-pause" onClick={onPause} disabled={status !== "running"}>
-            Pause
-          </button>
-          <button type="button" data-testid="sim-reset" onClick={onReset} disabled={status === "idle"}>
-            Reset
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              style={{ transform: collapsed ? "rotate(-90deg)" : "none" }}
+            >
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
           </button>
         </div>
       </div>
 
-      <label className="simulation-scenario-field">
-        <span>Scenario</span>
-        <select
-          data-testid="scenario-select"
-          value={scenarioId}
-          onChange={handleScenarioChange}
-          disabled={status === "running"}
-        >
-          {SCENARIO_PRESETS.map((scenario) => (
-            <option key={scenario.id} value={scenario.id}>
-              {scenario.label}
-            </option>
-          ))}
-        </select>
-      </label>
-
-      {tick === null ? (
-        <div className="simulation-panel-empty">Click Simulate to run traffic over this diagram.</div>
-      ) : (
+      {!collapsed && (
         <>
-          <div className="simulation-overview" data-testid="simulation-overview">
-            {buildOverviewText(tick, graph)}
-          </div>
-          <ul className="simulation-node-list" data-testid="simulation-node-list">
-            {tick.nodes.map((nodeResult) => {
-              const node = graph.nodes.find((candidate) => candidate.id === nodeResult.nodeId);
-              return (
-                <li key={nodeResult.nodeId} data-testid={`sim-node-${nodeResult.nodeId}`}>
-                  <span className="simulation-node-label">{node?.label ?? nodeResult.nodeId}</span>
-                  <span
-                    className={`simulation-node-status simulation-node-status-${nodeResult.status}`}
-                    data-testid={`sim-node-${nodeResult.nodeId}-status`}
-                  >
-                    {nodeResult.status}
-                  </span>
-                  <span data-testid={`sim-node-${nodeResult.nodeId}-rps`}>
-                    {Math.round(nodeResult.rps).toLocaleString()} rps
-                  </span>
-                  <span data-testid={`sim-node-${nodeResult.nodeId}-latency`}>
-                    {Math.round(nodeResult.latencyMs)} ms
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
+          <label className="simulation-scenario-field">
+            <span>Scenario</span>
+            <select
+              data-testid="scenario-select"
+              value={scenarioId}
+              onChange={handleScenarioChange}
+              disabled={status === "running"}
+            >
+              {SCENARIO_PRESETS.map((scenario) => (
+                <option key={scenario.id} value={scenario.id}>
+                  {scenario.label}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          {tick === null ? (
+            <div className="simulation-panel-empty">Click Simulate to run traffic over this diagram.</div>
+          ) : (
+            <>
+              <div className="simulation-overview" data-testid="simulation-overview">
+                {buildOverviewText(tick, graph)}
+              </div>
+              <ul className="simulation-node-list" data-testid="simulation-node-list">
+                {tick.nodes.map((nodeResult) => {
+                  const node = graph.nodes.find((candidate) => candidate.id === nodeResult.nodeId);
+                  return (
+                    <li key={nodeResult.nodeId} data-testid={`sim-node-${nodeResult.nodeId}`}>
+                      <span className="simulation-node-label">{node?.label ?? nodeResult.nodeId}</span>
+                      <span
+                        className={`simulation-node-status simulation-node-status-${nodeResult.status}`}
+                        data-testid={`sim-node-${nodeResult.nodeId}-status`}
+                      >
+                        {nodeResult.status}
+                      </span>
+                      <span data-testid={`sim-node-${nodeResult.nodeId}-rps`}>
+                        {Math.round(nodeResult.rps).toLocaleString()} rps
+                      </span>
+                      <span data-testid={`sim-node-${nodeResult.nodeId}-latency`}>
+                        {Math.round(nodeResult.latencyMs)} ms
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </>
+          )}
         </>
       )}
     </div>
