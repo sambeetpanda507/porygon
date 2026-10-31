@@ -384,7 +384,13 @@ body {
      this same top-left corner (top:12px, 30px tall) plus a gap — otherwise
      a large graph's node list grows tall enough to sit on top of it. */
   max-height: calc(100% - 66px);
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  /* The header below is pinned (flex-shrink: 0) and only
+     .simulation-panel-body scrolls, so this never scrolls as a whole — it
+     only clips, so nothing (e.g. a long node label) can push a horizontal
+     scrollbar onto the panel itself. */
+  overflow: hidden;
   background: #ffffff;
   border: 1px solid #e6e8eb;
   border-radius: 10px;
@@ -397,7 +403,14 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  flex-shrink: 0;
   margin-bottom: 8px;
+}
+
+.simulation-panel-body {
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
 }
 
 .simulation-panel-title {
@@ -492,6 +505,15 @@ body {
 .simulation-node-label {
   font-weight: 700;
   flex: 1;
+  /* Flex items default to min-width: auto, which refuses to shrink below
+     this label's own content width — with four siblings per row (status,
+     rps, latency) that was what forced the row (and the whole panel) wider
+     than its fixed 300px, which is what produced the horizontal scrollbar.
+     Truncating here instead keeps every row inside the panel's width. */
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .simulation-node-status {

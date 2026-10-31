@@ -233,4 +233,88 @@ test.describe("traffic simulation", () => {
     await expect(toggle).toHaveAttribute("aria-expanded", "true");
     await expect(scenarioField).toBeVisible();
   });
+
+  test("a Mobile App node is treated as a traffic source alongside Client", async ({ page }) => {
+    test.setTimeout(45_000);
+    await page.goto("/design");
+    const canvas = page.locator("canvas.excalidraw__canvas").first();
+    await canvas.waitFor({ state: "visible" });
+    const box = await canvas.boundingBox();
+    if (!box) throw new Error("canvas has no bounding box");
+
+    const client = { x: 260, y: 150 };
+    const mobileApp = { x: 550, y: 150 };
+    const server = { x: 400, y: 400 };
+
+    await dragComponentOntoCanvas(page, "client", box, client.x, client.y);
+    await dragComponentOntoCanvas(page, "mobile-app", box, mobileApp.x, mobileApp.y);
+    await dragComponentOntoCanvas(page, "server-vm", box, server.x, server.y);
+
+    await drawBoundArrow(page, box, client.x, client.y, server.x - 20, server.y);
+    await drawBoundArrow(page, box, mobileApp.x, mobileApp.y, server.x + 20, server.y);
+
+    await page.getByTestId("sim-play").click();
+
+    // Before the fix, only componentId "client" counted as a source, so
+    // Mobile App's own row stayed stuck at 0 rps forever despite having no
+    // incoming edges of its own.
+    const mobileAppRps = page
+      .getByTestId("simulation-node-list")
+      .locator("li")
+      .filter({ hasText: "Mobile App" })
+      .locator('[data-testid$="-rps"]');
+    await expect(mobileAppRps).not.toHaveText("0 rps", { timeout: 15_000 });
+  });
+
+  test("the simulation panel header stays pinned while the body scrolls, with no horizontal overflow", async ({
+    page,
+  }) => {
+    test.setTimeout(60_000);
+    await page.goto("/design");
+    const canvas = page.locator("canvas.excalidraw__canvas").first();
+    await canvas.waitFor({ state: "visible" });
+    const box = await canvas.boundingBox();
+    if (!box) throw new Error("canvas has no bounding box");
+
+    // A dozen nodes is more than enough to force the node list taller than
+    // the panel's max-height, so its body actually has something to scroll.
+    // Kept inside a tight grid near the canvas's own top-left — the canvas
+    // viewport here is narrower than the full window, and a drop target off
+    // its visible area lands under (and is blocked by) the Inspector panel.
+    const positions = Array.from({ length: 12 }, (_, i) => ({
+      x: 170 + (i % 3) * 170,
+      y: 130 + Math.floor(i / 3) * 110,
+    }));
+    for (const pos of positions) {
+      await dragComponentOntoCanvas(page, "client", box, pos.x, pos.y);
+    }
+
+    await page.getByTestId("sim-play").click();
+    await expect(page.getByTestId("simulation-node-list").locator("li")).toHaveCount(12, {
+      timeout: 15_000,
+    });
+
+    const panel = page.getByTestId("simulation-panel");
+    const header = page.getByTestId("simulation-status");
+
+    // No element inside the panel should be wider than the panel itself —
+    // that's exactly what forces a horizontal scrollbar.
+    const overflowsHorizontally = await panel.evaluate(
+      (el: HTMLElement): boolean => el.scrollWidth > el.clientWidth,
+    );
+    expect(overflowsHorizontally).toBe(false);
+
+    const headerTopBefore = (await header.boundingBox())?.y;
+    await page.getByTestId("simulation-panel-body").evaluate((el: HTMLElement): void => {
+      el.scrollTop = el.scrollHeight;
+    });
+    await page.waitForTimeout(100);
+    const headerTopAfter = (await header.boundingBox())?.y;
+
+    // The header's screen position shouldn't move at all once the body has
+    // scrolled — before the fix, the whole panel (header included) was one
+    // scroll container, so scrolling the list also scrolled the header out
+    // of view.
+    expect(headerTopAfter).toBe(headerTopBefore);
+  });
 });

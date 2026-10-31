@@ -104,7 +104,7 @@ export function SimulationPanel({
       </div>
 
       {!collapsed && (
-        <>
+        <div className="simulation-panel-body" data-testid="simulation-panel-body">
           <label className="simulation-scenario-field">
             <span>Scenario</span>
             <select
@@ -152,7 +152,7 @@ export function SimulationPanel({
               </ul>
             </>
           )}
-        </>
+        </div>
       )}
     </div>
   );

@@ -84,12 +84,17 @@ function graphsAreEqual(a: Graph, b: Graph): boolean {
   return JSON.stringify(a) === JSON.stringify(b);
 }
 
-/** Every "client" node on the canvas (there can be more than one — each is
- * an independent traffic entry point), else whichever node has no incoming
- * edges (a root of the diagram), else just the first node. */
+// The client-edge components that represent an actual end-user device
+// originating traffic, as opposed to edge infrastructure it passes through
+// (CDN Edge, DNS, Firewall, WAF) which only makes sense downstream of one.
+const TRAFFIC_SOURCE_COMPONENT_IDS = new Set<string>(["client", "mobile-app"]);
+
+/** Every client/mobile-app node on the canvas (there can be more than one —
+ * each is an independent traffic entry point), else whichever node has no
+ * incoming edges (a root of the diagram), else just the first node. */
 function pickSourceNodeIds(graph: Graph): readonly string[] {
   const clientNodeIds = graph.nodes
-    .filter((node) => node.componentId === "client")
+    .filter((node) => TRAFFIC_SOURCE_COMPONENT_IDS.has(node.componentId))
     .map((node) => node.id);
   if (clientNodeIds.length > 0) {
     return clientNodeIds;
