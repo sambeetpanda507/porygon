@@ -7,6 +7,7 @@ export interface SimulationSummary {
   healthyCount: number;
   strainedCount: number;
   overloadedCount: number;
+  deadCount: number;
   peakLatencyMs: number;
   totalRps: number;
 }
@@ -15,6 +16,7 @@ export function summarizeTick(tick: SimulationTick): SimulationSummary {
   let healthyCount = 0;
   let strainedCount = 0;
   let overloadedCount = 0;
+  let deadCount = 0;
   let peakLatencyMs = 0;
   let totalRps = 0;
 
@@ -25,8 +27,10 @@ export function summarizeTick(tick: SimulationTick): SimulationSummary {
       healthyCount += 1;
     } else if (node.status === "strained") {
       strainedCount += 1;
-    } else {
+    } else if (node.status === "overloaded") {
       overloadedCount += 1;
+    } else {
+      deadCount += 1;
     }
   }
 
@@ -35,6 +39,7 @@ export function summarizeTick(tick: SimulationTick): SimulationSummary {
     healthyCount,
     strainedCount,
     overloadedCount,
+    deadCount,
     peakLatencyMs,
     totalRps,
   };

@@ -1,10 +1,13 @@
 // packages/simulator — deterministic tick-based traffic simulation.
-// Each tick is a pure function of the graph, the traffic spec, and the
-// tick number: no hidden mutable state, so a tick can be recomputed or
-// replayed identically (e.g. from inside a Web Worker).
+// Each tick is a pure function of the graph, the traffic spec, the tick
+// number, and the active failure injections: no hidden mutable state, so a
+// tick can be recomputed or replayed identically (e.g. from inside a Web
+// Worker).
+import type { ComponentStats } from "@porygon/icons";
+import { applyFailureToStats, type FailureInjection } from "./failures";
 import type { Graph, GraphEdge } from "./graph";
 
-export type NodeStatus = "healthy" | "strained" | "overloaded";
+export type NodeStatus = "healthy" | "strained" | "overloaded" | "dead";
 
 export interface TrafficSpec {
   sourceNodeIds: readonly string[];
@@ -33,8 +36,38 @@ const STRAINED_LOAD_FACTOR = 0.7;
  * propagates it along outgoing edges — splitting evenly across a node's
  * out-edges (fan-out) — and derives each node's load, latency, and health
  * status from its capacity.
+ *
+ * `failures` lets a kill-node/degrade-node/cut-edge/etc. perturbation be
+ * layered on top without touching the graph itself: a killed node still
+ * receives whatever traffic reaches it (shown as "dead", 0 rps processed)
+ * but passes nothing onward; a cut edge is simply excluded from
+ * propagation; the other failure types reduce a node's effective capacity
+ * and/or add latency for this tick only.
  */
-export function computeTick(graph: Graph, traffic: TrafficSpec, tick: number): SimulationTick {
+export function computeTick(
+  graph: Graph,
+  traffic: TrafficSpec,
+  tick: number,
+  failures: readonly FailureInjection[] = [],
+): SimulationTick {
+  const killedNodeIds = new Set<string>(
+    failures.filter((failure) => failure.type === "kill-node").map((failure) => failure.targetId),
+  );
+  const cutEdgeIds = new Set<string>(
+    failures.filter((failure) => failure.type === "cut-edge").map((failure) => failure.targetId),
+  );
+  const statsFailureByNodeId = new Map<string, FailureInjection["type"]>();
+  for (const failure of failures) {
+    if (
+      failure.type === "degrade-node" ||
+      failure.type === "cold-cache" ||
+      failure.type === "fill-queue" ||
+      failure.type === "throttle-dependency"
+    ) {
+      statsFailureByNodeId.set(failure.targetId, failure.type);
+    }
+  }
+
   const rampProgress = Math.min(1, tick / Math.max(1, traffic.rampTicks));
   const rampedRps = traffic.targetRps * rampProgress;
 
@@ -53,6 +86,9 @@ export function computeTick(graph: Graph, traffic: TrafficSpec, tick: number): S
     outgoingEdges.set(node.id, []);
   }
   for (const edge of graph.edges) {
+    if (cutEdgeIds.has(edge.id) || killedNodeIds.has(edge.fromNodeId)) {
+      continue;
+    }
     outgoingEdges.get(edge.fromNodeId)?.push(edge);
   }
 
@@ -80,9 +116,18 @@ export function computeTick(graph: Graph, traffic: TrafficSpec, tick: number): S
   }
 
   const nodes: NodeTickResult[] = graph.nodes.map((node): NodeTickResult => {
+    if (killedNodeIds.has(node.id)) {
+      return { nodeId: node.id, rps: 0, latencyMs: 0, status: "dead" };
+    }
+
+    const failureType = statsFailureByNodeId.get(node.id);
+    const stats: ComponentStats = failureType
+      ? applyFailureToStats(node.stats, failureType)
+      : node.stats;
+
     const rps = incomingRps.get(node.id) ?? 0;
-    const load = node.stats.maxRps > 0 ? rps / node.stats.maxRps : 0;
-    const latencyMs = node.stats.avgLatencyMs * (1 + Math.max(0, load - 1) * 4 + load * 0.5);
+    const load = stats.maxRps > 0 ? rps / stats.maxRps : 0;
+    const latencyMs = stats.avgLatencyMs * (1 + Math.max(0, load - 1) * 4 + load * 0.5);
 
     let status: NodeStatus = "healthy";
     if (load >= 1) {

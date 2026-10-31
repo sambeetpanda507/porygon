@@ -105,7 +105,15 @@ test.describe("graph extraction & debug panel", () => {
     await expect(edgeItems.nth(1)).toHaveText("Load Balancer → Server / VM");
     await expect(edgeItems.nth(2)).toHaveText("Server / VM → PostgreSQL");
 
-    await expect(page.getByTestId("debug-warnings")).toHaveCount(0);
+    // A straight chain has no redundancy at all, so every middle node
+    // (Load Balancer, Server / VM — not PostgreSQL, which is a leaf with no
+    // outgoing edge) is a single point of failure; that's a correct,
+    // expected warning here, not a disconnected-node or ambiguous-sources one.
+    await expect(page.getByTestId("debug-warning-spof")).toHaveText(
+      "Single point of failure: Load Balancer, Server / VM — each has only one upstream path.",
+    );
+    await expect(page.getByTestId("debug-warning-disconnected-node")).toHaveCount(0);
+    await expect(page.getByTestId("debug-warning-ambiguous-sources")).toHaveCount(0);
 
     // close the panel so it doesn't overlap the drop point, then add an
     // isolated node with no arrows touching it

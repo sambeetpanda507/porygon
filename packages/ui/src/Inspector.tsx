@@ -7,18 +7,83 @@ import {
   type ComponentDef,
   type ComponentStats,
 } from "@porygon/icons";
+import { FAILURE_LABELS, type FailureInjection, type FailureType } from "@porygon/simulator";
 
 export interface InspectorProps {
   selectedComponentId: string | undefined;
+  selectedElementId: string | undefined;
+  selectedEdgeId: string | undefined;
   statsOverride: ComponentStats | undefined;
   onStatsChange: (stats: ComponentStats) => void;
+  activeFailures: readonly FailureInjection[];
+  onToggleFailure: (failure: FailureInjection) => void;
+}
+
+const NODE_FAILURE_TYPES: readonly FailureType[] = [
+  "kill-node",
+  "degrade-node",
+  "cold-cache",
+  "fill-queue",
+  "throttle-dependency",
+];
+
+function FailureButton({
+  label,
+  active,
+  onClick,
+  testId,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+  testId: string;
+}): ReactNode {
+  return (
+    <button
+      type="button"
+      className={`failure-button${active ? " failure-button-active" : ""}`}
+      data-testid={testId}
+      aria-pressed={active}
+      onClick={onClick}
+    >
+      {active ? `${label} (active)` : label}
+    </button>
+  );
 }
 
 export function Inspector({
   selectedComponentId,
+  selectedElementId,
+  selectedEdgeId,
   statsOverride,
   onStatsChange,
+  activeFailures,
+  onToggleFailure,
 }: InspectorProps): ReactNode {
+  function isFailureActive(type: FailureType, targetId: string): boolean {
+    return activeFailures.some(
+      (failure) => failure.type === type && failure.targetId === targetId,
+    );
+  }
+
+  if (selectedEdgeId) {
+    const cutActive = isFailureActive("cut-edge", selectedEdgeId);
+    return (
+      <div className="inspector" data-testid="inspector">
+        <div className="inspector-empty">Connection selected.</div>
+        <div className="inspector-failures">
+          <div className="inspector-failures-title">Failure injection</div>
+          <FailureButton
+            label={FAILURE_LABELS["cut-edge"]}
+            active={cutActive}
+            testId="failure-cut-edge"
+            onClick={() => onToggleFailure({ type: "cut-edge", targetId: selectedEdgeId })}
+          />
+        </div>
+      </div>
+    );
+  }
+
   if (!selectedComponentId) {
     return (
       <div className="inspector" data-testid="inspector">
@@ -28,7 +93,7 @@ export function Inspector({
   }
 
   const component: ComponentDef | undefined = getComponentById(selectedComponentId);
-  if (!component) {
+  if (!component || !selectedElementId) {
     return (
       <div className="inspector" data-testid="inspector">
         <div className="inspector-empty">Unknown component.</div>
@@ -102,6 +167,18 @@ export function Inspector({
             onChange={handleAvgLatencyChange}
           />
         </label>
+      </div>
+      <div className="inspector-failures">
+        <div className="inspector-failures-title">Failure injection</div>
+        {NODE_FAILURE_TYPES.map((failureType) => (
+          <FailureButton
+            key={failureType}
+            label={FAILURE_LABELS[failureType]}
+            active={isFailureActive(failureType, selectedElementId)}
+            testId={`failure-${failureType}`}
+            onClick={() => onToggleFailure({ type: failureType, targetId: selectedElementId })}
+          />
+        ))}
       </div>
     </div>
   );

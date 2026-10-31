@@ -21,16 +21,26 @@ import {
 } from "@porygon/canvas";
 import { getComponentById, type ComponentDef, type ComponentStats } from "@porygon/icons";
 import {
+  getScenarioById,
   validateGraph,
+  DEFAULT_SCENARIO_ID,
+  type FailureInjection,
   type Graph,
   type GraphWarning,
+  type ScenarioPreset,
   type SimulationTick,
   type TrafficSpec,
 } from "@porygon/simulator";
 import { ComponentLibrary, GraphDebugPanel, Inspector, SimulationPanel } from "@porygon/ui";
 import type { SimulationStatus } from "@porygon/ui";
 import { idbGet, idbSet } from "@/lib/db";
-import type { ResetCommand, StartCommand, StopCommand, WorkerMessage } from "@/workers/simulation.worker";
+import type {
+  ResetCommand,
+  SetFailuresCommand,
+  StartCommand,
+  StopCommand,
+  WorkerMessage,
+} from "@/workers/simulation.worker";
 
 const Excalidraw = dynamic(
   async () => (await import("@excalidraw/excalidraw")).Excalidraw,
@@ -75,6 +85,7 @@ export function Canvas(): ReactNode {
   const [initialData, setInitialData] = useState<StoredScene | null | undefined>(undefined);
   const [selectedElementId, setSelectedElementId] = useState<string | undefined>(undefined);
   const [selectedComponentId, setSelectedComponentId] = useState<string | undefined>(undefined);
+  const [selectedEdgeId, setSelectedEdgeId] = useState<string | undefined>(undefined);
   const [selectedStatsOverride, setSelectedStatsOverride] = useState<ComponentStats | undefined>(
     undefined,
   );
@@ -83,6 +94,8 @@ export function Canvas(): ReactNode {
   const [showDebugPanel, setShowDebugPanel] = useState<boolean>(false);
   const [simStatus, setSimStatus] = useState<SimulationStatus>("idle");
   const [latestTick, setLatestTick] = useState<SimulationTick | null>(null);
+  const [scenarioId, setScenarioId] = useState<string>(DEFAULT_SCENARIO_ID);
+  const [activeFailures, setActiveFailures] = useState<readonly FailureInjection[]>([]);
   const saveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const excalidrawApiRef = useRef<ExcalidrawImperativeAPI | null>(null);
   const canvasWrapRef = useRef<HTMLDivElement | null>(null);
@@ -140,6 +153,9 @@ export function Canvas(): ReactNode {
       );
       setSelectedStatsOverride(
         selectedElement ? getPorygonStatsOverride(selectedElement) : undefined,
+      );
+      setSelectedEdgeId(
+        selectedElement && selectedElement.type === "arrow" ? selectedElement.id : undefined,
       );
 
       const extractedGraph: Graph = extractGraph(elements);
@@ -251,20 +267,22 @@ export function Canvas(): ReactNode {
     }
     captureOriginalColors();
     const worker: Worker = ensureSimWorker();
+    const scenario: ScenarioPreset | undefined = getScenarioById(scenarioId);
     const traffic: TrafficSpec = {
       sourceNodeIds,
-      targetRps: SIM_TARGET_RPS,
-      rampTicks: SIM_RAMP_TICKS,
+      targetRps: SIM_TARGET_RPS * (scenario?.targetRpsMultiplier ?? 1),
+      rampTicks: scenario?.rampTicks ?? SIM_RAMP_TICKS,
     };
     const command: StartCommand = {
       type: "start",
       graph,
       traffic,
       tickIntervalMs: SIM_TICK_INTERVAL_MS,
+      failures: activeFailures,
     };
     worker.postMessage(command);
     setSimStatus("running");
-  }, [graph, captureOriginalColors, ensureSimWorker]);
+  }, [graph, scenarioId, activeFailures, captureOriginalColors, ensureSimWorker]);
 
   const handleSimPause = useCallback((): void => {
     const command: StopCommand = { type: "stop" };
@@ -277,8 +295,36 @@ export function Canvas(): ReactNode {
     simWorkerRef.current?.postMessage(command);
     setSimStatus("idle");
     setLatestTick(null);
+    setActiveFailures([]);
     restoreOriginalColors();
   }, [restoreOriginalColors]);
+
+  // Toggling a failure while idle just affects what the *next* Simulate run
+  // starts with; toggling one while a run is already going pushes the
+  // change straight to the worker so it takes effect on the next tick,
+  // without restarting the run or resetting the tick counter.
+  const handleToggleFailure = useCallback(
+    (failure: FailureInjection): void => {
+      setActiveFailures((previous: readonly FailureInjection[]): readonly FailureInjection[] => {
+        const isActive = previous.some(
+          (candidate) => candidate.type === failure.type && candidate.targetId === failure.targetId,
+        );
+        const next: readonly FailureInjection[] = isActive
+          ? previous.filter(
+              (candidate) =>
+                !(candidate.type === failure.type && candidate.targetId === failure.targetId),
+            )
+          : [...previous, failure];
+
+        if (simStatus === "running") {
+          const command: SetFailuresCommand = { type: "set-failures", failures: next };
+          simWorkerRef.current?.postMessage(command);
+        }
+        return next;
+      });
+    },
+    [simStatus],
+  );
 
   useEffect(() => {
     return (): void => {
@@ -357,8 +403,12 @@ export function Canvas(): ReactNode {
   const inspectorPanel: ReactNode = (
     <Inspector
       selectedComponentId={selectedComponentId}
+      selectedElementId={selectedElementId}
+      selectedEdgeId={selectedEdgeId}
       statsOverride={selectedStatsOverride}
       onStatsChange={handleStatsChange}
+      activeFailures={activeFailures}
+      onToggleFailure={handleToggleFailure}
     />
   );
 
@@ -393,6 +443,8 @@ export function Canvas(): ReactNode {
           onPlay={handleSimPlay}
           onPause={handleSimPause}
           onReset={handleSimReset}
+          scenarioId={scenarioId}
+          onScenarioChange={setScenarioId}
         />
       </div>
       {inspectorPanel}

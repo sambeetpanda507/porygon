@@ -4,7 +4,8 @@ import type { Graph } from "./graph";
 export type GraphWarning =
   | { type: "disconnected-node"; nodeId: string; message: string }
   | { type: "cycle"; nodeIds: readonly string[]; message: string }
-  | { type: "ambiguous-sources"; nodeIds: readonly string[]; message: string };
+  | { type: "ambiguous-sources"; nodeIds: readonly string[]; message: string }
+  | { type: "spof"; nodeIds: readonly string[]; message: string };
 
 export function validateGraph(graph: Graph): readonly GraphWarning[] {
   const warnings: GraphWarning[] = [];
@@ -54,6 +55,27 @@ export function validateGraph(graph: Graph): readonly GraphWarning[] {
       type: "ambiguous-sources",
       nodeIds: rootNodeIds,
       message: `Found ${rootNodeIds.length} possible traffic entry points; expected one.`,
+    });
+  }
+
+  // A node fed by exactly one upstream edge is a single point of failure
+  // for everything downstream of it — if it goes down, that traffic has no
+  // other path. (A node with zero incoming edges is a source, not a SPOF;
+  // a node with several incoming edges already has redundant paths.)
+  const spofNodeIds: string[] = graph.nodes
+    .filter(
+      (node): boolean =>
+        (incoming.get(node.id)?.length ?? 0) === 1 && (outgoing.get(node.id)?.length ?? 0) > 0,
+    )
+    .map((node): string => node.id);
+  if (spofNodeIds.length > 0) {
+    const spofLabels = spofNodeIds.map(
+      (nodeId) => graph.nodes.find((node) => node.id === nodeId)?.label ?? nodeId,
+    );
+    warnings.push({
+      type: "spof",
+      nodeIds: spofNodeIds,
+      message: `Single point of failure: ${spofLabels.join(", ")} — each has only one upstream path.`,
     });
   }
 
