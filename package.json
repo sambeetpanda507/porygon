@@ -1,6 +1,7 @@
 {
   "name": "porygon",
   "private": true,
+  "license": "MIT",
   "packageManager": "pnpm@10.0.0",
   "scripts": {
     "dev": "pnpm --filter @porygon/web dev",
