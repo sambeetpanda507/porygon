@@ -16,15 +16,24 @@ const NODE_HEIGHT = 70;
 /**
  * Builds a rectangle-with-label skeleton centered at the given scene
  * coordinates, tagged with the component's id via Excalidraw's customData.
+ *
+ * `id` is optional and only needed when the caller has to reference this
+ * node from another skeleton in the same batch — e.g. an arrow's
+ * `start`/`end` binding (see presets.ts, which builds a whole preloaded
+ * diagram's nodes and bound arrows in one convertToExcalidrawElements call).
+ * A single dropped node never needs it since there's nothing else in that
+ * batch to bind to.
  */
 export function createComponentSkeleton(
   component: ComponentDef,
   centerX: number,
   centerY: number,
+  id?: string,
 ): ExcalidrawElementSkeleton {
   const customData: P0rygonCustomData = { p0rygon: { componentId: component.id } };
   return {
     type: "rectangle",
+    id,
     x: centerX - NODE_WIDTH / 2,
     y: centerY - NODE_HEIGHT / 2,
     width: NODE_WIDTH,

@@ -6,3 +6,4 @@ export * from "./SimulationPanel";
 export * from "./PracticePanel";
 export * from "./SharingPanel";
 export * from "./ShareBanner";
+export * from "./TemplatesPanel";

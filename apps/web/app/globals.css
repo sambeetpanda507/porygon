@@ -569,11 +569,18 @@ body {
 }
 
 /* ---- Practice mode panel ---- */
-.practice-panel-toggle {
+.canvas-toolbar-left {
   position: absolute;
   top: 12px;
   left: 12px;
   z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.practice-panel-toggle,
+.templates-panel-toggle {
   height: 30px;
   border-radius: 6px;
   border: 1px solid #e6e8eb;
@@ -583,15 +590,21 @@ body {
   font-weight: 700;
   color: #1b1b1f;
   cursor: pointer;
+  white-space: nowrap;
 }
 
-.practice-panel {
+.practice-panel,
+.templates-panel {
   position: absolute;
-  top: 50px;
+  /* canvas-toolbar-left stacks two buttons vertically (12px top + 30px +
+     8px gap + 30px = 80px), so the flyout has to start below both of them
+     — starting it at the old single-row offset (50px) let it cover the
+     second button whenever it was open, making that button unclickable. */
+  top: 92px;
   left: 12px;
   z-index: 5;
   width: 280px;
-  max-height: calc(100% - 220px);
+  max-height: calc(100% - 262px);
   overflow-y: auto;
   background: #ffffff;
   border: 1px solid #e6e8eb;
@@ -692,6 +705,69 @@ body {
   font-size: 12px;
   color: #9aa0ac;
   line-height: 1.4;
+}
+
+/* ---- Preloaded system-design templates panel ---- */
+.templates-panel-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1b1b1f;
+}
+
+.templates-panel-hint {
+  font-size: 11px;
+  color: #9aa0ac;
+  line-height: 1.4;
+}
+
+.templates-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+}
+
+.templates-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #f7f8fa;
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.templates-list-item-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.templates-list-item-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #1b1b1f;
+}
+
+.templates-list-item-description {
+  font-size: 11px;
+  color: #6b7280;
+  line-height: 1.35;
+  margin-top: 2px;
+}
+
+.templates-list button {
+  flex-shrink: 0;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid #e6e8eb;
+  background: #ffffff;
+  padding: 0 10px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #1b1b1f;
+  cursor: pointer;
 }
 
 .inspector-explanation {

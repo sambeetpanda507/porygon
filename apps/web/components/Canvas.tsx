@@ -11,6 +11,7 @@ import type {
 } from "@excalidraw/excalidraw/types";
 import type { OrderedExcalidrawElement } from "@excalidraw/excalidraw/element/types";
 import {
+  buildPresetSkeleton,
   createComponentSkeleton,
   extractGraph,
   getP0rygonComponentId,
@@ -18,6 +19,7 @@ import {
   withP0rygonStatsOverride,
   NODE_STATUS_COLORS,
   P0RYGON_DRAG_MIME_TYPE,
+  type SystemDesignPreset,
 } from "@p0rygon/canvas";
 import { getComponentById, type ComponentDef, type ComponentStats } from "@p0rygon/icons";
 import {
@@ -40,6 +42,7 @@ import {
   ShareBanner,
   SharingPanel,
   SimulationPanel,
+  TemplatesPanel,
 } from "@p0rygon/ui";
 import type { SimulationStatus, VersionSummary } from "@p0rygon/ui";
 import { SCENARIO_PROMPTS } from "@/content/prompts";
@@ -161,6 +164,7 @@ export function Canvas(): ReactNode {
   const [explainMode, setExplainMode] = useState<boolean>(false);
   const [isReadOnlyShare, setIsReadOnlyShare] = useState<boolean>(false);
   const [showSharingPanel, setShowSharingPanel] = useState<boolean>(false);
+  const [showTemplatesPanel, setShowTemplatesPanel] = useState<boolean>(false);
   const [copyFeedback, setCopyFeedback] = useState<boolean>(false);
   const [versions, setVersions] = useState<readonly VersionRecord[]>([]);
   const [showOnboarding, setShowOnboarding] = useState<boolean>(false);
@@ -592,6 +596,23 @@ export function Canvas(): ReactNode {
     });
   }, []);
 
+  const handleLoadPreset = useCallback((preset: SystemDesignPreset): void => {
+    const api: ExcalidrawImperativeAPI | null = excalidrawApiRef.current;
+    if (!api) {
+      return;
+    }
+    void (async (): Promise<void> => {
+      const { convertToExcalidrawElements } = await import("@excalidraw/excalidraw");
+      const elements = convertToExcalidrawElements(buildPresetSkeleton(preset));
+      // Loading a preset replaces the canvas outright — same as Import
+      // .porygon above — rather than merging with whatever is already
+      // there, since the two diagrams' layouts would just overlap.
+      api.updateScene({ elements });
+      api.scrollToContent(elements, { fitToContent: true });
+      setShowTemplatesPanel(false);
+    })();
+  }, []);
+
   const handleCopyShareLink = useCallback((): void => {
     const scene: StoredScene | null = buildPortableScene();
     if (!scene) {
@@ -911,14 +932,30 @@ export function Canvas(): ReactNode {
               scenarioId={scenarioId}
               onScenarioChange={setScenarioId}
             />
-            <button
-              type="button"
-              className="practice-panel-toggle"
-              data-testid="practice-panel-toggle"
-              onClick={() => setShowPracticePanel((shown: boolean): boolean => !shown)}
-            >
-              {showPracticePanel ? "Hide practice mode" : "Practice mode"}
-            </button>
+            <div className="canvas-toolbar-left">
+              <button
+                type="button"
+                className="practice-panel-toggle"
+                data-testid="practice-panel-toggle"
+                onClick={() => {
+                  setShowPracticePanel((shown: boolean): boolean => !shown);
+                  setShowTemplatesPanel(false);
+                }}
+              >
+                {showPracticePanel ? "Hide practice mode" : "Practice mode"}
+              </button>
+              <button
+                type="button"
+                className="templates-panel-toggle"
+                data-testid="templates-panel-toggle"
+                onClick={() => {
+                  setShowTemplatesPanel((shown: boolean): boolean => !shown);
+                  setShowPracticePanel(false);
+                }}
+              >
+                {showTemplatesPanel ? "Hide designs" : "Preloaded designs"}
+              </button>
+            </div>
             {showPracticePanel && (
               <PracticePanel
                 prompts={SCENARIO_PROMPTS}
@@ -930,6 +967,9 @@ export function Canvas(): ReactNode {
                 explainMode={explainMode}
                 onToggleExplainMode={handleToggleExplainMode}
               />
+            )}
+            {showTemplatesPanel && (
+              <TemplatesPanel onLoadPreset={handleLoadPreset} hasExistingDiagram={graph.nodes.length > 0} />
             )}
             <button
               type="button"
