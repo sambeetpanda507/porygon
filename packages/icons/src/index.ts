@@ -1,3 +1,3 @@
-// packages/icons — system design icon set (SVG + Excalidraw library format).
-// Populated in Phase 2.
-export {};
+// packages/icons — the system-design component catalog consumed by the
+// canvas sidebar (Phase 2) and the simulator (Phase 4+).
+export * from "./catalog";

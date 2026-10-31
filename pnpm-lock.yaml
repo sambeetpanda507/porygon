@@ -13,6 +13,15 @@ importers:
       '@excalidraw/excalidraw':
         specifier: 0.18.1
         version: 0.18.1(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      '@porygon/canvas':
+        specifier: workspace:*
+        version: link:../../packages/canvas
+      '@porygon/icons':
+        specifier: workspace:*
+        version: link:../../packages/icons
+      '@porygon/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
       next:
         specifier: 16.4.3
         version: 16.4.3(@playwright/test@1.64.1)(@types/node@26.6.6)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(sass@1.51.0)
@@ -39,13 +48,34 @@ importers:
         specifier: 7.0.2
         version: 7.0.2
 
-  packages/canvas: {}
+  packages/canvas:
+    dependencies:
+      '@excalidraw/excalidraw':
+        specifier: 0.18.1
+        version: 0.18.1(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      '@porygon/icons':
+        specifier: workspace:*
+        version: link:../icons
 
   packages/icons: {}
 
   packages/simulator: {}
 
-  packages/ui: {}
+  packages/ui:
+    dependencies:
+      '@porygon/canvas':
+        specifier: workspace:*
+        version: link:../canvas
+      '@porygon/icons':
+        specifier: workspace:*
+        version: link:../icons
+      react:
+        specifier: 19.3.1
+        version: 19.3.1
+    devDependencies:
+      '@types/react':
+        specifier: 19.3.0
+        version: 19.3.0
 
 packages:
 

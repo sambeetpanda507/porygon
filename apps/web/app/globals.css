@@ -10,11 +10,6 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
-.canvas-root {
-  height: 100vh;
-  width: 100vw;
-}
-
 .canvas-loading {
   height: 100vh;
   width: 100vw;
@@ -33,4 +28,193 @@ body {
   height: 100vh;
   gap: 12px;
   text-align: center;
+}
+
+/* ---- App shell: sidebar | canvas | inspector ---- */
+.app-shell {
+  height: 100vh;
+  width: 100vw;
+  display: flex;
+}
+
+.canvas-root {
+  flex: 1;
+  position: relative;
+}
+
+/* ---- Component library sidebar ---- */
+.sidebar {
+  width: 272px;
+  flex-shrink: 0;
+  background: #ffffff;
+  border-right: 1px solid #e6e8eb;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.sidebar-search-wrap {
+  padding: 14px 12px 0 12px;
+}
+
+.search-box {
+  width: 100%;
+  height: 34px;
+  border-radius: 8px;
+  background: #f2f3f5;
+  border: none;
+  padding: 0 10px;
+  font-size: 12px;
+  color: #1b1b1f;
+}
+
+.search-box::placeholder {
+  color: #9aa0ac;
+}
+
+.sidebar-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px 12px 24px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.category {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.category-label {
+  font-size: 10.5px;
+  font-weight: 800;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  padding: 4px 4px 2px 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.category-count {
+  font-size: 9px;
+  font-weight: 700;
+  color: #c2c5cc;
+}
+
+.icon-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.icon-chip {
+  min-height: 58px;
+  border-radius: 10px;
+  background: #f7f8fa;
+  border: 1px solid #ecedf0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 6px 2px;
+  cursor: grab;
+}
+
+.icon-chip:active {
+  cursor: grabbing;
+}
+
+.icon-glyph {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 10px;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.icon-label {
+  font-size: 8.3px;
+  line-height: 1.15;
+  color: #6b7280;
+  font-weight: 600;
+  text-align: center;
+  padding: 0 2px;
+}
+
+/* ---- Inspector panel ---- */
+.inspector {
+  width: 260px;
+  flex-shrink: 0;
+  background: #ffffff;
+  border-left: 1px solid #e6e8eb;
+  padding: 16px;
+}
+
+.inspector-empty {
+  font-size: 12px;
+  color: #9aa0ac;
+}
+
+.inspector-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.inspector-header .icon-glyph {
+  width: 32px;
+  height: 32px;
+  font-size: 12px;
+  border-radius: 8px;
+}
+
+.inspector-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #1b1b1f;
+}
+
+.inspector-category {
+  font-size: 11px;
+  color: #9aa0ac;
+}
+
+.inspector-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.inspector-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: #f7f8fa;
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.inspector-stat-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: #9aa0ac;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.inspector-stat-value {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1b1b1f;
 }
