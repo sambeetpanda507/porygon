@@ -142,6 +142,46 @@ function computeHoverTrafficInfo(
   return { label: node.label, incomingRps: tickNode.rps, outgoingRps, status: tickNode.status };
 }
 
+/**
+ * Excalidraw's live AppState carries several fields that are never safe to
+ * hand to IndexedDB's structured-clone put() — `errorMessage` can be a
+ * React element, `contextMenu.items` carry onClick callbacks, `fileHandle`
+ * is a host FileSystemHandle, and `selectedLinearElement`/`editingLinearElement`
+ * are class instances that may reference non-cloneable internals — any of
+ * which throws a DataCloneError and silently breaks autosave. Keeping only
+ * this known-safe, plain-data subset (the view/style prefs actually worth
+ * restoring) sidesteps the whole class of fields rather than chasing each
+ * one as it's discovered.
+ */
+function sanitizeAppStateForStorage(appState: AppState): Partial<AppState> {
+  return {
+    viewBackgroundColor: appState.viewBackgroundColor,
+    scrollX: appState.scrollX,
+    scrollY: appState.scrollY,
+    zoom: appState.zoom,
+    gridSize: appState.gridSize,
+    gridStep: appState.gridStep,
+    gridModeEnabled: appState.gridModeEnabled,
+    theme: appState.theme,
+    zenModeEnabled: appState.zenModeEnabled,
+    name: appState.name,
+    currentItemStrokeColor: appState.currentItemStrokeColor,
+    currentItemBackgroundColor: appState.currentItemBackgroundColor,
+    currentItemFillStyle: appState.currentItemFillStyle,
+    currentItemStrokeWidth: appState.currentItemStrokeWidth,
+    currentItemStrokeStyle: appState.currentItemStrokeStyle,
+    currentItemRoughness: appState.currentItemRoughness,
+    currentItemOpacity: appState.currentItemOpacity,
+    currentItemFontFamily: appState.currentItemFontFamily,
+    currentItemFontSize: appState.currentItemFontSize,
+    currentItemTextAlign: appState.currentItemTextAlign,
+    currentItemStartArrowhead: appState.currentItemStartArrowhead,
+    currentItemEndArrowhead: appState.currentItemEndArrowhead,
+    currentItemRoundness: appState.currentItemRoundness,
+    currentItemArrowType: appState.currentItemArrowType,
+  };
+}
+
 export function Canvas(): ReactNode {
   const [initialData, setInitialData] = useState<StoredScene | null | undefined>(undefined);
   const [selectedElementId, setSelectedElementId] = useState<string | undefined>(undefined);
@@ -274,7 +314,7 @@ export function Canvas(): ReactNode {
         clearTimeout(saveTimeout.current);
       }
       saveTimeout.current = setTimeout(() => {
-        const scene: StoredScene = { elements, appState, files };
+        const scene: StoredScene = { elements, appState: sanitizeAppStateForStorage(appState), files };
         void idbSet(SCENE_KEY, scene);
       }, SAVE_DEBOUNCE_MS);
 
@@ -531,7 +571,7 @@ export function Canvas(): ReactNode {
     }
     return {
       elements: api.getSceneElements(),
-      appState: api.getAppState(),
+      appState: sanitizeAppStateForStorage(api.getAppState()),
       files: api.getFiles(),
     };
   }, []);
@@ -544,10 +584,15 @@ export function Canvas(): ReactNode {
   // (we already missed "followedBy" once), so portable scenes just drop
   // appState entirely — Excalidraw's own defaults are perfectly fine for a
   // freshly opened export or share link, which never needs to carry the
-  // exporting user's scroll position/selection/collaborators anyway. Only
-  // JSON-serialized paths (export, share link) need this — idbSet uses
-  // IndexedDB's structured clone, which preserves Maps/Sets natively, so
-  // version snapshots are unaffected and keep the full appState.
+  // exporting user's scroll position/selection/collaborators anyway.
+  //
+  // buildCurrentScene already applies sanitizeAppStateForStorage, so this
+  // just drops the (already-trimmed) rest too — idbSet's structured clone
+  // handles Maps/Sets fine, but that's not the whole story: AppState can
+  // also carry a React element (errorMessage), function-bearing objects
+  // (contextMenu.items), or a host FileSystemHandle, none of which
+  // structured clone can serialize either, which is exactly what
+  // sanitizeAppStateForStorage exists to avoid.
   const buildPortableScene = useCallback((): StoredScene | null => {
     const scene: StoredScene | null = buildCurrentScene();
     if (!scene) {

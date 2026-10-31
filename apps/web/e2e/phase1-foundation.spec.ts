@@ -64,3 +64,44 @@ test("drawing persists across reload via IndexedDB, with no network calls for di
 
   expect(diagramNetworkRequests).toEqual([]);
 });
+
+test("autosave survives AppState fields that aren't structured-clone-safe (e.g. an open context menu)", async ({
+  page,
+}) => {
+  // Excalidraw's AppState can carry a React element (errorMessage), a
+  // FileSystemHandle, or — as reproduced here — a contextMenu whose items
+  // carry onClick callbacks. None of those survive IndexedDB's
+  // structured-clone put(), which used to throw a DataCloneError and
+  // silently break autosave for however long that menu stayed open.
+  const pageErrors: string[] = [];
+  page.on("pageerror", (error) => pageErrors.push(error.message));
+
+  await page.goto("/design");
+  await drawRectangle(page);
+
+  const canvas = page.locator("canvas.excalidraw__canvas").first();
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error("canvas has no bounding box");
+  // Right-click an empty area clear of both the just-drawn rectangle
+  // (500-800,300-500, left selected so no island panel changes needed) and
+  // the "Selected shape actions" island panel it left open on the left, so
+  // this opens the background menu ("Toggle grid" etc), not an
+  // element-specific one or a click absorbed by the island panel's own UI.
+  await page.mouse.click(box.x + 650, box.y + 100, { button: "right" });
+  await expect(page.getByText("Toggle grid")).toBeVisible();
+
+  // Past the save debounce while the context menu (and its non-cloneable
+  // appState.contextMenu.items) is still open.
+  await page.waitForTimeout(600);
+
+  expect(pageErrors.filter((message) => message.includes("could not be cloned"))).toEqual([]);
+
+  const countAfterReload: number = await (async (): Promise<number> => {
+    await page.keyboard.press("Escape");
+    await page.reload();
+    await page.locator("canvas.excalidraw__canvas").first().waitFor({ state: "visible" });
+    await page.waitForTimeout(300);
+    return readStoredElementCount(page);
+  })();
+  expect(countAfterReload).toBeGreaterThan(0);
+});
