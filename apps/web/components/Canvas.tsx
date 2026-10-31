@@ -37,11 +37,14 @@ import {
   GraphDebugPanel,
   Inspector,
   PracticePanel,
+  ShareBanner,
+  SharingPanel,
   SimulationPanel,
 } from "@porygon/ui";
-import type { SimulationStatus } from "@porygon/ui";
+import type { SimulationStatus, VersionSummary } from "@porygon/ui";
 import { SCENARIO_PROMPTS } from "@/content/prompts";
 import { idbGet, idbSet } from "@/lib/db";
+import { buildShareUrl, decodeBase64ToScene } from "@/lib/sharing";
 import type {
   ResetCommand,
   SetFailuresCommand,
@@ -56,12 +59,19 @@ const Excalidraw = dynamic(
 );
 
 const SCENE_KEY = "porygon-scene";
+const VERSIONS_KEY = "porygon-versions";
 const SAVE_DEBOUNCE_MS = 300;
+const COPY_FEEDBACK_MS = 2_000;
 
 interface StoredScene {
   elements: readonly OrderedExcalidrawElement[];
   appState: Partial<AppState>;
   files: BinaryFiles;
+}
+
+interface VersionRecord extends StoredScene {
+  id: string;
+  timestamp: number;
 }
 
 const EMPTY_GRAPH: Graph = { nodes: [], edges: [] };
@@ -109,7 +119,12 @@ export function Canvas(): ReactNode {
   const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
   const [checkedItems, setCheckedItems] = useState<ReadonlySet<string>>(new Set());
   const [explainMode, setExplainMode] = useState<boolean>(false);
+  const [isReadOnlyShare, setIsReadOnlyShare] = useState<boolean>(false);
+  const [showSharingPanel, setShowSharingPanel] = useState<boolean>(false);
+  const [copyFeedback, setCopyFeedback] = useState<boolean>(false);
+  const [versions, setVersions] = useState<readonly VersionRecord[]>([]);
   const saveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const copyFeedbackTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const excalidrawApiRef = useRef<ExcalidrawImperativeAPI | null>(null);
   const canvasWrapRef = useRef<HTMLDivElement | null>(null);
   const simWorkerRef = useRef<Worker | null>(null);
@@ -119,11 +134,35 @@ export function Canvas(): ReactNode {
 
   useEffect(() => {
     let cancelled = false;
+
+    // A ?share=<encoded> link renders a read-only snapshot straight from
+    // the URL, never touching this browser's own saved diagram — picking
+    // that up instead of the real one would be a quiet, confusing bug.
+    const shareParam = new URLSearchParams(window.location.search).get("share");
+    if (shareParam) {
+      try {
+        const sharedScene = decodeBase64ToScene<StoredScene>(shareParam);
+        setInitialData(sharedScene);
+        setIsReadOnlyShare(true);
+        return;
+      } catch {
+        // Malformed/corrupted share param — fall through to the normal
+        // load below rather than leaving the canvas stuck loading forever.
+      }
+    }
+
     idbGet<StoredScene>(SCENE_KEY).then((stored: StoredScene | undefined) => {
       if (!cancelled) {
         setInitialData(stored ?? null);
       }
     });
+    idbGet<readonly VersionRecord[]>(VERSIONS_KEY).then(
+      (stored: readonly VersionRecord[] | undefined) => {
+        if (!cancelled) {
+          setVersions(stored ?? []);
+        }
+      },
+    );
     return (): void => {
       cancelled = true;
     };
@@ -135,6 +174,9 @@ export function Canvas(): ReactNode {
       appState: AppState,
       files: BinaryFiles,
     ): void => {
+      if (isReadOnlyShare) {
+        return;
+      }
       if (saveTimeout.current !== null) {
         clearTimeout(saveTimeout.current);
       }
@@ -185,7 +227,7 @@ export function Canvas(): ReactNode {
         JSON.stringify(previous) === JSON.stringify(extractedWarnings) ? previous : extractedWarnings,
       );
     },
-    [],
+    [isReadOnlyShare],
   );
 
   const handleStatsChange = useCallback(
@@ -385,6 +427,132 @@ export function Canvas(): ReactNode {
     setExplainMode((previous: boolean): boolean => !previous);
   }, []);
 
+  const buildCurrentScene = useCallback((): StoredScene | null => {
+    const api: ExcalidrawImperativeAPI | null = excalidrawApiRef.current;
+    if (!api) {
+      return null;
+    }
+    return {
+      elements: api.getSceneElements(),
+      appState: api.getAppState(),
+      files: api.getFiles(),
+    };
+  }, []);
+
+  // appState.collaborators is a Map at runtime; JSON.stringify silently
+  // turns it into a plain "{}", and Excalidraw's own merge logic then
+  // crashes calling .forEach on it when that gets fed back in as
+  // initialData. Only JSON-serialized paths (export, share link) need
+  // this — idbSet uses IndexedDB's structured clone, which preserves Maps
+  // natively, so version snapshots are unaffected.
+  const buildPortableScene = useCallback((): StoredScene | null => {
+    const scene: StoredScene | null = buildCurrentScene();
+    if (!scene) {
+      return null;
+    }
+    const { collaborators: _collaborators, ...restAppState } = scene.appState as Record<
+      string,
+      unknown
+    >;
+    return { ...scene, appState: restAppState as Partial<AppState> };
+  }, [buildCurrentScene]);
+
+  const handleExport = useCallback((): void => {
+    const scene: StoredScene | null = buildPortableScene();
+    if (!scene) {
+      return;
+    }
+    const blob = new Blob([JSON.stringify(scene, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "diagram.porygon";
+    anchor.click();
+    URL.revokeObjectURL(url);
+  }, [buildPortableScene]);
+
+  const handleImportFile = useCallback((file: File): void => {
+    const api: ExcalidrawImperativeAPI | null = excalidrawApiRef.current;
+    if (!api) {
+      return;
+    }
+    void file.text().then((text: string): void => {
+      let parsed: Partial<StoredScene>;
+      try {
+        parsed = JSON.parse(text) as Partial<StoredScene>;
+      } catch {
+        return;
+      }
+      if (!Array.isArray(parsed.elements)) {
+        return;
+      }
+      const elements = parsed.elements as readonly OrderedExcalidrawElement[];
+      api.updateScene({ elements: elements as OrderedExcalidrawElement[] });
+      const scene: StoredScene = {
+        elements,
+        appState: parsed.appState ?? {},
+        files: parsed.files ?? {},
+      };
+      void idbSet(SCENE_KEY, scene);
+    });
+  }, []);
+
+  const handleCopyShareLink = useCallback((): void => {
+    const scene: StoredScene | null = buildPortableScene();
+    if (!scene) {
+      return;
+    }
+    void navigator.clipboard.writeText(buildShareUrl(scene)).then((): void => {
+      setCopyFeedback(true);
+      if (copyFeedbackTimeout.current !== null) {
+        clearTimeout(copyFeedbackTimeout.current);
+      }
+      copyFeedbackTimeout.current = setTimeout(() => setCopyFeedback(false), COPY_FEEDBACK_MS);
+    });
+  }, [buildPortableScene]);
+
+  const handleSaveVersion = useCallback((): void => {
+    const scene: StoredScene | null = buildCurrentScene();
+    if (!scene) {
+      return;
+    }
+    const record: VersionRecord = { ...scene, id: `v-${Date.now()}`, timestamp: Date.now() };
+    setVersions((previous: readonly VersionRecord[]): readonly VersionRecord[] => {
+      const next = [record, ...previous];
+      void idbSet(VERSIONS_KEY, next);
+      return next;
+    });
+  }, [buildCurrentScene]);
+
+  const handleRestoreVersion = useCallback(
+    (versionId: string): void => {
+      const api: ExcalidrawImperativeAPI | null = excalidrawApiRef.current;
+      const version: VersionRecord | undefined = versions.find(
+        (candidate) => candidate.id === versionId,
+      );
+      if (!api || !version) {
+        return;
+      }
+      api.updateScene({ elements: version.elements as OrderedExcalidrawElement[] });
+      const scene: StoredScene = {
+        elements: version.elements,
+        appState: version.appState,
+        files: version.files,
+      };
+      void idbSet(SCENE_KEY, scene);
+    },
+    [versions],
+  );
+
+  const handleDuplicateToEdit = useCallback((): void => {
+    if (!initialData) {
+      return;
+    }
+    void idbSet(SCENE_KEY, initialData).then((): void => {
+      window.location.href = "/design";
+    });
+  }, [initialData]);
+
   // Drop handling is wired via a native, capture-phase listener instead of a
   // React onDrop prop: Excalidraw's own canvas has its own drop handling
   // (for image files) that can swallow the bubbling React synthetic event
@@ -466,13 +634,21 @@ export function Canvas(): ReactNode {
     />
   );
 
+  const versionSummaries: readonly VersionSummary[] = versions.map(
+    (version): VersionSummary => ({
+      id: version.id,
+      timestamp: version.timestamp,
+      elementCount: version.elements.length,
+    }),
+  );
+
   if (initialData === undefined) {
     return <div className="canvas-loading">Loading your last diagram…</div>;
   }
 
   return (
     <div className="app-shell">
-      <ComponentLibrary />
+      {!isReadOnlyShare && <ComponentLibrary />}
       <div className="canvas-root" ref={canvasWrapRef}>
         <Excalidraw
           excalidrawAPI={(api: ExcalidrawImperativeAPI): void => {
@@ -480,48 +656,74 @@ export function Canvas(): ReactNode {
           }}
           initialData={initialData ?? undefined}
           onChange={handleChange}
+          viewModeEnabled={isReadOnlyShare}
         />
-        <button
-          type="button"
-          className="debug-panel-toggle"
-          data-testid="debug-panel-toggle"
-          onClick={() => setShowDebugPanel((shown: boolean): boolean => !shown)}
-        >
-          {showDebugPanel ? "Hide graph debug" : "Graph debug"}
-        </button>
-        {showDebugPanel && <GraphDebugPanel graph={graph} warnings={warnings} />}
-        <SimulationPanel
-          graph={graph}
-          tick={latestTick}
-          status={simStatus}
-          onPlay={handleSimPlay}
-          onPause={handleSimPause}
-          onReset={handleSimReset}
-          scenarioId={scenarioId}
-          onScenarioChange={setScenarioId}
-        />
-        <button
-          type="button"
-          className="practice-panel-toggle"
-          data-testid="practice-panel-toggle"
-          onClick={() => setShowPracticePanel((shown: boolean): boolean => !shown)}
-        >
-          {showPracticePanel ? "Hide practice mode" : "Practice mode"}
-        </button>
-        {showPracticePanel && (
-          <PracticePanel
-            prompts={SCENARIO_PROMPTS}
-            selectedPromptId={selectedPromptId}
-            onSelectPrompt={handleSelectPrompt}
-            elapsedSeconds={elapsedSeconds}
-            checkedItems={checkedItems}
-            onToggleChecklistItem={handleToggleChecklistItem}
-            explainMode={explainMode}
-            onToggleExplainMode={handleToggleExplainMode}
-          />
+        {isReadOnlyShare ? (
+          <ShareBanner onDuplicate={handleDuplicateToEdit} />
+        ) : (
+          <>
+            <button
+              type="button"
+              className="debug-panel-toggle"
+              data-testid="debug-panel-toggle"
+              onClick={() => setShowDebugPanel((shown: boolean): boolean => !shown)}
+            >
+              {showDebugPanel ? "Hide graph debug" : "Graph debug"}
+            </button>
+            {showDebugPanel && <GraphDebugPanel graph={graph} warnings={warnings} />}
+            <SimulationPanel
+              graph={graph}
+              tick={latestTick}
+              status={simStatus}
+              onPlay={handleSimPlay}
+              onPause={handleSimPause}
+              onReset={handleSimReset}
+              scenarioId={scenarioId}
+              onScenarioChange={setScenarioId}
+            />
+            <button
+              type="button"
+              className="practice-panel-toggle"
+              data-testid="practice-panel-toggle"
+              onClick={() => setShowPracticePanel((shown: boolean): boolean => !shown)}
+            >
+              {showPracticePanel ? "Hide practice mode" : "Practice mode"}
+            </button>
+            {showPracticePanel && (
+              <PracticePanel
+                prompts={SCENARIO_PROMPTS}
+                selectedPromptId={selectedPromptId}
+                onSelectPrompt={handleSelectPrompt}
+                elapsedSeconds={elapsedSeconds}
+                checkedItems={checkedItems}
+                onToggleChecklistItem={handleToggleChecklistItem}
+                explainMode={explainMode}
+                onToggleExplainMode={handleToggleExplainMode}
+              />
+            )}
+            <button
+              type="button"
+              className="sharing-panel-toggle"
+              data-testid="sharing-panel-toggle"
+              onClick={() => setShowSharingPanel((shown: boolean): boolean => !shown)}
+            >
+              {showSharingPanel ? "Hide sharing" : "Sharing"}
+            </button>
+            {showSharingPanel && (
+              <SharingPanel
+                onExport={handleExport}
+                onImportFile={handleImportFile}
+                onCopyShareLink={handleCopyShareLink}
+                copyFeedback={copyFeedback}
+                versions={versionSummaries}
+                onSaveVersion={handleSaveVersion}
+                onRestoreVersion={handleRestoreVersion}
+              />
+            )}
+          </>
         )}
       </div>
-      {inspectorPanel}
+      {!isReadOnlyShare && inspectorPanel}
     </div>
   );
 }
