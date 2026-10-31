@@ -1,0 +1,10 @@
+{
+  "name": "porygon",
+  "private": true,
+  "packageManager": "pnpm@10.0.0",
+  "scripts": {
+    "dev": "pnpm --filter @porygon/web dev",
+    "build": "pnpm --filter @porygon/web build",
+    "test:e2e": "pnpm --filter @porygon/web test:e2e"
+  }
+}
