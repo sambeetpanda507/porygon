@@ -7,7 +7,7 @@ import type { Graph, GraphEdge } from "./graph";
 export type NodeStatus = "healthy" | "strained" | "overloaded";
 
 export interface TrafficSpec {
-  sourceNodeId: string;
+  sourceNodeIds: readonly string[];
   targetRps: number;
   rampTicks: number;
 }
@@ -28,9 +28,11 @@ const STRAINED_LOAD_FACTOR = 0.7;
 
 /**
  * Computes one tick: ramps traffic from 0 up to targetRps over rampTicks
- * ticks at the source node, then propagates it along outgoing edges —
- * splitting evenly across a node's out-edges (fan-out) — and derives each
- * node's load, latency, and health status from its capacity.
+ * ticks at each source node (every source gets the full targetRps — they
+ * are independent entry points, not shares of one combined rate), then
+ * propagates it along outgoing edges — splitting evenly across a node's
+ * out-edges (fan-out) — and derives each node's load, latency, and health
+ * status from its capacity.
  */
 export function computeTick(graph: Graph, traffic: TrafficSpec, tick: number): SimulationTick {
   const rampProgress = Math.min(1, tick / Math.max(1, traffic.rampTicks));
@@ -40,8 +42,10 @@ export function computeTick(graph: Graph, traffic: TrafficSpec, tick: number): S
   for (const node of graph.nodes) {
     incomingRps.set(node.id, 0);
   }
-  if (incomingRps.has(traffic.sourceNodeId)) {
-    incomingRps.set(traffic.sourceNodeId, rampedRps);
+  for (const sourceNodeId of traffic.sourceNodeIds) {
+    if (incomingRps.has(sourceNodeId)) {
+      incomingRps.set(sourceNodeId, rampedRps);
+    }
   }
 
   const outgoingEdges = new Map<string, GraphEdge[]>();
@@ -53,7 +57,7 @@ export function computeTick(graph: Graph, traffic: TrafficSpec, tick: number): S
   }
 
   const visited = new Set<string>();
-  const queue: string[] = [traffic.sourceNodeId];
+  const queue: string[] = [...traffic.sourceNodeIds];
   while (queue.length > 0) {
     const nodeId = queue.shift() as string;
     if (visited.has(nodeId)) {

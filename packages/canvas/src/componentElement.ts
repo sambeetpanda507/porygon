@@ -32,10 +32,19 @@ export function createComponentSkeleton(
     backgroundColor: component.color,
     strokeColor: component.color,
     fillStyle: "solid",
+    roundness: { type: 3 },
     customData,
     label: {
       text: `${component.glyph}  ${component.label}`,
       fontSize: 14,
+      // Every catalog color is a mid-to-dark saturated swatch (same ones
+      // the sidebar's icon-glyph badges already pair with white text/icons
+      // against), so white is readable on all of them. Without this, the
+      // label inherits Excalidraw's default near-black text color, which is
+      // invisible against these backgrounds — only a label's emoji glyph
+      // (rendered by the system's color emoji font, unaffected by text
+      // color) stayed visible, leaving every node looking like a blank box.
+      strokeColor: "#ffffff",
     },
   };
 }

@@ -107,4 +107,48 @@ test.describe("traffic simulation", () => {
     await expect(page.getByTestId("simulation-status")).toHaveText("Simulation: idle");
     await expect(page.getByTestId("simulation-node-list")).toHaveCount(0);
   });
+
+  test("multiple client nodes are each treated as an independent traffic source", async ({
+    page,
+  }) => {
+    test.setTimeout(60_000);
+    await page.goto("/design");
+    const canvas = page.locator("canvas.excalidraw__canvas").first();
+    await canvas.waitFor({ state: "visible" });
+    const box = await canvas.boundingBox();
+    if (!box) throw new Error("canvas has no bounding box");
+
+    // Two separate client -> server chains, with no edge connecting them,
+    // so each server's traffic can only have come from its own client.
+    const clientA = { x: 260, y: 150 };
+    const serverA = { x: 260, y: 400 };
+    const clientB = { x: 550, y: 150 };
+    const serverB = { x: 550, y: 400 };
+
+    await dragComponentOntoCanvas(page, "client", box, clientA.x, clientA.y);
+    await dragComponentOntoCanvas(page, "server-vm", box, serverA.x, serverA.y);
+    await dragComponentOntoCanvas(page, "client", box, clientB.x, clientB.y);
+    await dragComponentOntoCanvas(page, "postgresql", box, serverB.x, serverB.y);
+
+    await drawBoundArrow(page, box, clientA.x, clientA.y, serverA.x, serverA.y);
+    await drawBoundArrow(page, box, clientB.x, clientB.y, serverB.x, serverB.y);
+
+    const serverARps = page
+      .getByTestId("simulation-node-list")
+      .locator("li")
+      .filter({ hasText: "Server / VM" })
+      .locator('[data-testid$="-rps"]');
+    const serverBRps = page
+      .getByTestId("simulation-node-list")
+      .locator("li")
+      .filter({ hasText: "PostgreSQL" })
+      .locator('[data-testid$="-rps"]');
+
+    await page.getByTestId("sim-play").click();
+
+    // Before the fix, only the first client in scene order fed any traffic
+    // downstream — the second client's chain stayed at "0 rps" forever.
+    await expect(serverARps).not.toHaveText("0 rps", { timeout: 10_000 });
+    await expect(serverBRps).not.toHaveText("0 rps", { timeout: 10_000 });
+  });
 });

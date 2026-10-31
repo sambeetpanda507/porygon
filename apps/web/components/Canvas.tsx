@@ -55,16 +55,20 @@ function graphsAreEqual(a: Graph, b: Graph): boolean {
   return JSON.stringify(a) === JSON.stringify(b);
 }
 
-/** The "client" component if one's on the canvas, else whichever node has
- * no incoming edges (a root of the diagram), else just the first node. */
-function pickSourceNodeId(graph: Graph): string | undefined {
-  const clientNode = graph.nodes.find((node) => node.componentId === "client");
-  if (clientNode) {
-    return clientNode.id;
+/** Every "client" node on the canvas (there can be more than one — each is
+ * an independent traffic entry point), else whichever node has no incoming
+ * edges (a root of the diagram), else just the first node. */
+function pickSourceNodeIds(graph: Graph): readonly string[] {
+  const clientNodeIds = graph.nodes
+    .filter((node) => node.componentId === "client")
+    .map((node) => node.id);
+  if (clientNodeIds.length > 0) {
+    return clientNodeIds;
   }
   const targetIds = new Set(graph.edges.map((edge) => edge.toNodeId));
   const rootNode = graph.nodes.find((node) => !targetIds.has(node.id));
-  return (rootNode ?? graph.nodes[0])?.id;
+  const fallbackId = (rootNode ?? graph.nodes[0])?.id;
+  return fallbackId ? [fallbackId] : [];
 }
 
 export function Canvas(): ReactNode {
@@ -241,14 +245,14 @@ export function Canvas(): ReactNode {
   }, [applyTickColors]);
 
   const handleSimPlay = useCallback((): void => {
-    const sourceNodeId: string | undefined = pickSourceNodeId(graph);
-    if (!sourceNodeId) {
+    const sourceNodeIds: readonly string[] = pickSourceNodeIds(graph);
+    if (sourceNodeIds.length === 0) {
       return;
     }
     captureOriginalColors();
     const worker: Worker = ensureSimWorker();
     const traffic: TrafficSpec = {
-      sourceNodeId,
+      sourceNodeIds,
       targetRps: SIM_TARGET_RPS,
       rampTicks: SIM_RAMP_TICKS,
     };
