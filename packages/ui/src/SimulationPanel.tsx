@@ -58,25 +58,9 @@ export function SimulationPanel({
   return (
     <div className="simulation-panel" data-testid="simulation-panel">
       <div className="simulation-panel-header">
-        <div className="simulation-panel-title" data-testid="simulation-status">
-          Simulation: {status}
-        </div>
-        <div className="simulation-panel-header-actions">
-          <div className="simulation-controls">
-            <button
-              type="button"
-              data-testid="sim-play"
-              onClick={onPlay}
-              disabled={status === "running" || graph.nodes.length === 0}
-            >
-              Simulate
-            </button>
-            <button type="button" data-testid="sim-pause" onClick={onPause} disabled={status !== "running"}>
-              Pause
-            </button>
-            <button type="button" data-testid="sim-reset" onClick={onReset} disabled={status === "idle"}>
-              Reset
-            </button>
+        <div className="simulation-panel-header-top">
+          <div className="simulation-panel-title" data-testid="simulation-status">
+            Simulation: {status}
           </div>
           <button
             type="button"
@@ -99,6 +83,22 @@ export function SimulationPanel({
             >
               <polyline points="6 9 12 15 18 9" />
             </svg>
+          </button>
+        </div>
+        <div className="simulation-controls">
+          <button
+            type="button"
+            data-testid="sim-play"
+            onClick={onPlay}
+            disabled={status === "running" || graph.nodes.length === 0}
+          >
+            Simulate
+          </button>
+          <button type="button" data-testid="sim-pause" onClick={onPause} disabled={status !== "running"}>
+            Pause
+          </button>
+          <button type="button" data-testid="sim-reset" onClick={onReset} disabled={status === "idle"}>
+            Reset
           </button>
         </div>
       </div>

@@ -400,8 +400,7 @@ body {
 
 .simulation-panel-header {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
   gap: 8px;
   flex-shrink: 0;
   margin-bottom: 8px;
@@ -413,17 +412,24 @@ body {
   min-height: 0;
 }
 
+/* Title + collapse chevron on their own row, and the three
+   Simulate/Pause/Reset controls on the row below — a fixed 300px panel
+   can't fit "Simulation: <status>" plus three buttons plus the chevron
+   on one line for every status word ("running"/"strained" is longer than
+   "idle"), so splitting into two rows is what keeps this from overflowing
+   or wrapping awkwardly regardless of status text length. */
+.simulation-panel-header-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
 .simulation-panel-title {
   font-size: 12px;
   font-weight: 700;
   color: #1b1b1f;
   text-transform: capitalize;
-}
-
-.simulation-panel-header-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
 }
 
 .simulation-controls {
