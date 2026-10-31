@@ -35,18 +35,25 @@ export function validateGraph(graph: Graph): readonly GraphWarning[] {
     incoming.get(edge.toNodeId)?.push(edge.fromNodeId);
   }
 
-  const sourceNodeIds: string[] = graph.nodes
+  const rootNodeIds: string[] = graph.nodes
     .filter(
-      (node: { id: string }): boolean =>
+      (node): boolean =>
         (incoming.get(node.id)?.length ?? 0) === 0 &&
         (outgoing.get(node.id)?.length ?? 0) > 0,
     )
-    .map((node: { id: string }): string => node.id);
-  if (sourceNodeIds.length > 1) {
+    .map((node): string => node.id);
+  // Multiple "client" nodes are a deliberate, well-defined traffic setup —
+  // the simulator treats every one of them as an independent source, so
+  // there's nothing ambiguous about it. Only warn when the graph has
+  // several entry points and none of them is a recognized client, since
+  // that's the case the simulator's own source-picking falls back to an
+  // arbitrary single root for.
+  const hasClientNode = graph.nodes.some((node): boolean => node.componentId === "client");
+  if (!hasClientNode && rootNodeIds.length > 1) {
     warnings.push({
       type: "ambiguous-sources",
-      nodeIds: sourceNodeIds,
-      message: `Found ${sourceNodeIds.length} possible traffic entry points; expected one.`,
+      nodeIds: rootNodeIds,
+      message: `Found ${rootNodeIds.length} possible traffic entry points; expected one.`,
     });
   }
 

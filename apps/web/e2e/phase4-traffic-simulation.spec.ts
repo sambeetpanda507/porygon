@@ -143,6 +143,12 @@ test.describe("traffic simulation", () => {
     await drawBoundArrow(page, box, clientA.x, clientA.y, serverA.x, serverA.y);
     await drawBoundArrow(page, box, clientB.x, clientB.y, serverB.x, serverB.y);
 
+    // Multiple "client" nodes are a deliberate, supported traffic setup —
+    // the graph debug panel shouldn't flag them as ambiguous entry points.
+    await page.getByTestId("debug-panel-toggle").click();
+    await expect(page.getByTestId("debug-warning-ambiguous-sources")).toHaveCount(0);
+    await page.getByTestId("debug-panel-toggle").click();
+
     const serverARps = page
       .getByTestId("simulation-node-list")
       .locator("li")
