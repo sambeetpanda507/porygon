@@ -91,6 +91,10 @@ See [plan.md](plan.md) for the full product plan and phase-by-phase implementati
 
 Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) for how to get set up, the branch/PR workflow, and code style expectations.
 
+## Deployment
+
+See [DEPLOYMENT.md](DEPLOYMENT.md) for the recommended hosting setup, build configuration, and release checklist.
+
 ## License
 
 [MIT](LICENSE)
