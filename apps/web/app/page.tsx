@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import Link from "next/link";
 import { getComponentById, type ComponentDef } from "@porygon/icons";
 import "./landing.css";
@@ -66,10 +66,58 @@ const PREVIEW_NODES: ReadonlyArray<{
   { componentId: "postgresql", sub: "6ms avg" },
 ];
 
+// Positions are percentages of the canvas region's own box (the flex
+// sibling of the rail, viewBox-matched by the SVG arrows below at 6.5x/3x
+// scale — 650x300 local units). The cursor/ghost/ripple elements live in
+// this same box (see below), so their landing.css keyframes use the same
+// percentages as the Client/Cache node positions here.
+const RICH_NODES: ReadonlyArray<{
+  componentId: string;
+  sub: string;
+  leftPct: number;
+  topPct: number;
+  extraClass?: string;
+}> = [
+  { componentId: "client", sub: "12k rps", leftPct: 10, topPct: 44.3 },
+  { componentId: "cdn-edge", sub: "96% hit", leftPct: 30, topPct: 10 },
+  {
+    componentId: "load-balancer",
+    sub: "92% cap",
+    leftPct: 30,
+    topPct: 78.7,
+    extraClass: "landing-rich-node-lb",
+  },
+  {
+    componentId: "server-vm",
+    sub: "4 nodes",
+    leftPct: 50,
+    topPct: 44.3,
+    extraClass: "landing-rich-node-servers",
+  },
+  {
+    componentId: "redis-cache",
+    sub: "reads",
+    leftPct: 70,
+    topPct: 44.3,
+    extraClass: "landing-rich-node-dropped",
+  },
+  { componentId: "postgresql", sub: "6ms avg", leftPct: 90, topPct: 44.3 },
+];
+
+const RICH_PACKETS: ReadonlyArray<{ sx: number; sy: number; ex: number; ey: number; delay: number }> = [
+  { sx: 10, sy: 44.3, ex: 30, ey: 10, delay: 0 },
+  { sx: 10, sy: 44.3, ex: 30, ey: 78.7, delay: 0.15 },
+  { sx: 30, sy: 78.7, ex: 50, ey: 44.3, delay: 0.3 },
+  { sx: 50, sy: 44.3, ex: 70, ey: 44.3, delay: 0.45 },
+  { sx: 70, sy: 44.3, ex: 90, ey: 44.3, delay: 0.6 },
+];
+
+const RICH_RAIL_COLORS: readonly string[] = ["#4D7CFE", "#6B7280", "#16A34A", "#F59E0B"];
+
 export default function HomePage(): ReactNode {
-  const showcaseComponents: ComponentDef[] = SHOWCASE_COMPONENT_IDS.map(
-    (id) => getComponentById(id),
-  ).filter((component): component is ComponentDef => component !== undefined);
+  const showcaseComponents: ComponentDef[] = SHOWCASE_COMPONENT_IDS.map((id) => getComponentById(id)).filter(
+    (component): component is ComponentDef => component !== undefined,
+  );
 
   return (
     <div className="landing">
@@ -93,9 +141,8 @@ export default function HomePage(): ReactNode {
             Then <span>watch them break.</span>
           </h1>
           <p>
-            Porygon is a drag-and-drop whiteboard for system design — draw your architecture with
-            load balancers, databases, caches and queues, then simulate real traffic, spikes and
-            failures to see exactly what happens.
+            Porygon is a drag-and-drop whiteboard for system design — draw your architecture with load balancers, databases, caches and queues, then
+            simulate real traffic, spikes and failures to see exactly what happens.
           </p>
           <div className="landing-hero-ctas">
             <Link href="/design" className="landing-btn-large-primary">
@@ -112,7 +159,9 @@ export default function HomePage(): ReactNode {
               <div className="landing-preview-dot" style={{ background: "#FEBC2E" }} />
               <div className="landing-preview-dot" style={{ background: "#28C840" }} />
             </div>
-            <div className="landing-preview-body">
+            {/* Mobile fallback: a simple, static row of nodes with a gentle
+                color pulse — verified not to overflow at narrow widths. */}
+            <div className="landing-preview-body landing-preview-simple">
               <div className="landing-preview-nodes">
                 {PREVIEW_NODES.map((previewNode, index) => {
                   const component = getComponentById(previewNode.componentId);
@@ -129,10 +178,7 @@ export default function HomePage(): ReactNode {
                     <div key={component.id} style={{ display: "contents" }}>
                       {index > 0 && <span className="landing-preview-arrow">→</span>}
                       <div className={`landing-preview-node${pulseClass}`}>
-                        <div
-                          className="landing-preview-node-icon"
-                          style={{ background: component.color }}
-                        >
+                        <div className="landing-preview-node-icon" style={{ background: component.color }}>
                           {component.glyph}
                         </div>
                         <div className="landing-preview-node-label">{component.label}</div>
@@ -158,6 +204,142 @@ export default function HomePage(): ReactNode {
                 </div>
               </div>
             </div>
+
+            {/* Tablet width and up: the full animated demo — drag a Cache
+                node in from the sidebar, watch it wire up, then Simulate
+                fires a traffic spike. */}
+            <div className="landing-preview-body landing-preview-rich">
+              <div className="landing-preview-stage">
+                <div className="landing-preview-rail">
+                  {RICH_RAIL_COLORS.map((color) => (
+                    <div key={color} className="landing-preview-rail-chip" style={{ background: color }} />
+                  ))}
+                </div>
+
+                <div className="landing-preview-canvas">
+                  <svg className="landing-rich-arrows" viewBox="0 0 650 300" preserveAspectRatio="none">
+                    <defs>
+                      <marker id="richArrowHead" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto">
+                        <path d="M0,0 L7,3.5 L0,7 z" fill="#C7CAD1" />
+                      </marker>
+                    </defs>
+                    <path d="M 65 132.9 L 195 30" stroke="#C7CAD1" strokeWidth="2" fill="none" markerEnd="url(#richArrowHead)" />
+                    <path d="M 65 132.9 L 195 236.1" stroke="#C7CAD1" strokeWidth="2" fill="none" markerEnd="url(#richArrowHead)" />
+                    <path d="M 195 236.1 L 325 132.9" stroke="#C7CAD1" strokeWidth="2" fill="none" markerEnd="url(#richArrowHead)" />
+                    <path
+                      className="landing-rich-arrow-pending"
+                      d="M 325 132.9 L 455 132.9"
+                      stroke="#C7CAD1"
+                      strokeWidth="2"
+                      fill="none"
+                      markerEnd="url(#richArrowHead)"
+                    />
+                    <path
+                      className="landing-rich-arrow-pending"
+                      d="M 455 132.9 L 585 132.9"
+                      stroke="#C7CAD1"
+                      strokeWidth="2"
+                      fill="none"
+                      markerEnd="url(#richArrowHead)"
+                    />
+                  </svg>
+
+                  {RICH_NODES.map((node) => {
+                    const component = getComponentById(node.componentId);
+                    if (!component) {
+                      return null;
+                    }
+                    return (
+                      <div
+                        key={node.componentId}
+                        className={`landing-rich-node${node.extraClass ? ` ${node.extraClass}` : ""}`}
+                        style={{ left: `${node.leftPct}%`, top: `${node.topPct}%` }}
+                      >
+                        <div className="landing-preview-node-icon" style={{ background: component.color }}>
+                          {component.glyph}
+                        </div>
+                        <div className="landing-preview-node-label">{component.label}</div>
+                        <div className="landing-preview-node-sub">{node.sub}</div>
+                      </div>
+                    );
+                  })}
+
+                  <div className="landing-traffic-layer">
+                    {RICH_PACKETS.map((packet, index) => (
+                      <div
+                        key={index}
+                        className="landing-packet"
+                        style={
+                          {
+                            "--sx": `${packet.sx}%`,
+                            "--sy": `${packet.sy}%`,
+                            "--ex": `${packet.ex}%`,
+                            "--ey": `${packet.ey}%`,
+                            "--delay": `${packet.delay}s`,
+                          } as CSSProperties
+                        }
+                      />
+                    ))}
+                  </div>
+
+                  {/* Cursor/ripple/ghost share the canvas's own coordinate
+                      space (not the rail+canvas stage) so they stay in sync
+                      with the node positions above at every viewport width. */}
+                  <div className="landing-demo-cursor">
+                    <svg width="16" height="16" viewBox="0 0 18 18" fill="none">
+                      <path d="M1 1 L1 15 L4.6 11.6 L7 17 L9.4 16 L7 10.6 L12 10.6 Z" fill="#1B1B1F" stroke="white" strokeWidth="1" />
+                    </svg>
+                  </div>
+                  <div className="landing-click-ripple" />
+                  <div className="landing-ghost-node">
+                    <div className="landing-preview-node-icon">⚡</div>
+                    <div className="landing-preview-node-label">Cache</div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="landing-preview-panel">
+                <div className="landing-rich-status">
+                  <span className="landing-v-calm" style={{ color: "#16A34A" }}>
+                    Idle
+                  </span>
+                  <span className="landing-v-spike" style={{ color: "#DC2626" }}>
+                    Simulating 10x spike
+                  </span>
+                </div>
+                <div className="landing-sim-btn-demo">▶ Simulate traffic</div>
+                <div className="landing-preview-panel-title" style={{ marginTop: 4 }}>
+                  Live metrics
+                </div>
+                <div className="landing-preview-metric">
+                  <div className="landing-preview-metric-label">Throughput</div>
+                  <div className="landing-rich-metric-value">
+                    <span className="landing-v-calm">12.4k rps</span>
+                    <span className="landing-v-spike">38.2k rps</span>
+                  </div>
+                </div>
+                <div className="landing-preview-metric">
+                  <div className="landing-preview-metric-label">P99 latency</div>
+                  <div className="landing-rich-metric-value">
+                    <span className="landing-v-calm">140 ms</span>
+                    <span className="landing-v-spike" style={{ color: "#DC2626" }}>
+                      820 ms
+                    </span>
+                  </div>
+                </div>
+                <div className="landing-preview-metric">
+                  <div className="landing-preview-metric-label">Error rate</div>
+                  <div className="landing-rich-metric-value">
+                    <span className="landing-v-calm" style={{ color: "#16A34A" }}>
+                      0.2%
+                    </span>
+                    <span className="landing-v-spike" style={{ color: "#DC2626" }}>
+                      4.7%
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </section>
 
@@ -165,8 +347,7 @@ export default function HomePage(): ReactNode {
           <div className="landing-section-eyebrow">Why Porygon</div>
           <h2 className="landing-section-title">Everything a whiteboard needs — plus a pulse</h2>
           <p className="landing-section-sub">
-            All the free-form drawing of Excalidraw, with a simulation layer that turns a static
-            diagram into a living system you can stress-test.
+            All the free-form drawing of Excalidraw, with a simulation layer that turns a static diagram into a living system you can stress-test.
           </p>
 
           <div className="landing-feature-grid">
@@ -199,19 +380,14 @@ export default function HomePage(): ReactNode {
 
         <section className="landing-cta-band">
           <h2>Stop guessing what happens under load.</h2>
-          <p>
-            Draw your architecture, press simulate, and find the single point of failure before an
-            interviewer — or production — does.
-          </p>
+          <p>Draw your architecture, press simulate, and find the single point of failure before an interviewer — or production — does.</p>
           <Link href="/design" className="landing-btn-large-primary">
             ▶ Start designing for free
           </Link>
         </section>
       </main>
 
-      <footer className="landing-footer">
-        Porygon is local-first — no accounts, nothing stored on a server unless you export it.
-      </footer>
+      <footer className="landing-footer">Porygon is local-first — no accounts, nothing stored on a server unless you export it.</footer>
     </div>
   );
 }

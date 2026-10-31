@@ -64,7 +64,8 @@
   align-items: center;
   text-align: center;
   padding: 72px 24px 56px 24px;
-  background: radial-gradient(circle at 20% 0%, rgba(124, 108, 240, 0.08), transparent 45%),
+  background:
+    radial-gradient(circle at 20% 0%, rgba(124, 108, 240, 0.08), transparent 45%),
     radial-gradient(circle at 80% 10%, rgba(77, 124, 254, 0.08), transparent 45%);
 }
 
@@ -169,8 +170,30 @@
   display: flex;
   flex-wrap: wrap;
   position: relative;
-  background: linear-gradient(rgba(0, 0, 0, 0.03) 1px, transparent 1px) 0 0 / 20px 20px,
+  background:
+    linear-gradient(rgba(0, 0, 0, 0.03) 1px, transparent 1px) 0 0 / 20px 20px,
     linear-gradient(90deg, rgba(0, 0, 0, 0.03) 1px, transparent 1px) 0 0 / 20px 20px;
+}
+
+/* The simple, static preview is the mobile fallback (verified not to
+   overflow at narrow widths — see the phase8 e2e test); the animated
+   "rich" preview below replaces it from tablet width up. */
+.landing-preview-simple {
+  display: flex;
+}
+
+.landing-preview-rich {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .landing-preview-simple {
+    display: none;
+  }
+
+  .landing-preview-rich {
+    display: flex;
+  }
 }
 
 .landing-preview-nodes {
@@ -238,15 +261,31 @@
 }
 
 @keyframes landingHealthyPulse {
-  0%, 60% { border-color: #16a34a; }
-  75%, 90% { border-color: #f59e0b; }
-  100% { border-color: #16a34a; }
+  0%,
+  60% {
+    border-color: #16a34a;
+  }
+  75%,
+  90% {
+    border-color: #f59e0b;
+  }
+  100% {
+    border-color: #16a34a;
+  }
 }
 
 @keyframes landingStrainedPulse {
-  0%, 60% { border-color: #f59e0b; }
-  75%, 90% { border-color: #dc2626; }
-  100% { border-color: #f59e0b; }
+  0%,
+  60% {
+    border-color: #f59e0b;
+  }
+  75%,
+  90% {
+    border-color: #dc2626;
+  }
+  100% {
+    border-color: #f59e0b;
+  }
 }
 
 .landing-preview-panel {
@@ -289,9 +328,508 @@
 }
 
 @keyframes landingMetricPulse {
-  0%, 60% { color: #16a34a; }
-  75%, 90% { color: #dc2626; }
-  100% { color: #16a34a; }
+  0%,
+  60% {
+    color: #16a34a;
+  }
+  75%,
+  90% {
+    color: #dc2626;
+  }
+  100% {
+    color: #16a34a;
+  }
+}
+
+/* ---- Rich animated preview (tablet width and up) ----
+   A single 10s loop: drag a Cache chip from the sidebar onto the canvas,
+   watch it wire in, then Simulate fires a traffic spike that pushes the
+   Load Balancer/Servers/Cache into a strained state before settling back.
+   Every element's animation is keyed to the same 0-100% timeline so they
+   stay in sync without any JS. */
+.landing-preview-stage {
+  position: relative;
+  flex: 1;
+  display: flex;
+  min-height: 320px;
+}
+
+.landing-preview-rail {
+  width: 64px;
+  flex-shrink: 0;
+  border-right: 1px solid #ecedf0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 16px 0;
+  background: #ffffff;
+}
+
+.landing-preview-rail-chip {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+}
+
+.landing-preview-canvas {
+  position: relative;
+  flex: 1;
+  background:
+    linear-gradient(rgba(0, 0, 0, 0.03) 1px, transparent 1px) 0 0 / 20px 20px,
+    linear-gradient(90deg, rgba(0, 0, 0, 0.03) 1px, transparent 1px) 0 0 / 20px 20px;
+}
+
+.landing-rich-node {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: 92px;
+  min-height: 48px;
+  background: white;
+  border-radius: 9px;
+  border: 1.5px solid #dadce1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  padding: 4px;
+  z-index: 2;
+}
+
+.landing-rich-node .landing-preview-node-icon {
+  width: 18px;
+  height: 18px;
+  font-size: 8px;
+}
+
+.landing-rich-node .landing-preview-node-label {
+  font-size: 9px;
+}
+
+.landing-rich-node-dropped {
+  animation:
+    landingDropPop 10s ease-in-out infinite,
+    landingCacheColor 10s ease-in-out infinite;
+}
+
+.landing-rich-node-lb {
+  animation: landingLbColor 10s ease-in-out infinite;
+}
+
+.landing-rich-node-servers {
+  animation: landingServersColor 10s ease-in-out infinite;
+}
+
+.landing-rich-arrows {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+}
+
+.landing-rich-arrow-pending {
+  animation: landingArrowPop 10s ease-in-out infinite;
+}
+
+.landing-demo-cursor {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  transform: translate(-50%, -50%);
+  z-index: 5;
+  pointer-events: none;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.25));
+  animation:
+    landingCursorMove 10s cubic-bezier(0.45, 0, 0.2, 1) infinite,
+    landingCursorVisible 10s ease-in-out infinite;
+}
+
+.landing-click-ripple {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(77, 124, 254, 0.35);
+  z-index: 4;
+  opacity: 0;
+  pointer-events: none;
+  animation: landingClickRipple 10s cubic-bezier(0.45, 0, 0.2, 1) infinite;
+}
+
+.landing-ghost-node {
+  position: absolute;
+  width: 84px;
+  height: 44px;
+  border-radius: 8px;
+  background: white;
+  border: 1.5px solid #f59e0b;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.12);
+  z-index: 4;
+  opacity: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  pointer-events: none;
+  animation: landingGhostMove 10s cubic-bezier(0.45, 0, 0.2, 1) infinite;
+}
+
+.landing-ghost-node .landing-preview-node-icon {
+  width: 16px;
+  height: 16px;
+  font-size: 7px;
+  background: #f59e0b;
+}
+
+.landing-ghost-node .landing-preview-node-label {
+  font-size: 8.5px;
+}
+
+.landing-traffic-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  animation: landingTrafficVisible 10s ease-in-out infinite;
+}
+
+.landing-packet {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #4d7cfe;
+  left: var(--sx);
+  top: var(--sy);
+  animation: landingPacketMove 1.1s linear infinite;
+  animation-delay: var(--delay, 0s);
+}
+
+.landing-sim-btn-demo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 30px;
+  border-radius: 7px;
+  background: #1b1b1f;
+  color: #ffffff;
+  font-size: 10.5px;
+  font-weight: 800;
+  transform-origin: center;
+  animation: landingBtnPress 10s cubic-bezier(0.45, 0, 0.2, 1) infinite;
+}
+
+.landing-rich-metric-value {
+  display: grid;
+}
+
+.landing-rich-metric-value > span {
+  grid-area: 1 / 1;
+  font-size: 16px;
+  font-weight: 800;
+  color: #1b1b1f;
+  margin-top: 2px;
+}
+
+.landing-rich-status {
+  display: grid;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.landing-rich-status > span {
+  grid-area: 1 / 1;
+}
+
+.landing-v-calm {
+  animation: landingCalmFade 10s ease-in-out infinite;
+}
+
+.landing-v-spike {
+  animation: landingSpikeFade 10s ease-in-out infinite;
+}
+
+@keyframes landingCursorMove {
+  0%,
+  8% {
+    left: 10%;
+    top: 44.3%;
+  }
+  15%,
+  30% {
+    left: 70%;
+    top: 44.3%;
+  }
+  92%,
+  100% {
+    left: 10%;
+    top: 44.3%;
+  }
+}
+
+@keyframes landingCursorVisible {
+  0%,
+  34% {
+    opacity: 1;
+  }
+  38%,
+  92% {
+    opacity: 0;
+  }
+  96%,
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes landingClickRipple {
+  0%,
+  7% {
+    opacity: 0;
+    left: 10%;
+    top: 44.3%;
+    transform: translate(-50%, -50%) scale(0.4);
+  }
+  8% {
+    opacity: 0.9;
+    left: 10%;
+    top: 44.3%;
+    transform: translate(-50%, -50%) scale(0.4);
+  }
+  13% {
+    opacity: 0;
+    left: 10%;
+    top: 44.3%;
+    transform: translate(-50%, -50%) scale(1.6);
+  }
+  29% {
+    opacity: 0;
+    left: 70%;
+    top: 44.3%;
+    transform: translate(-50%, -50%) scale(0.4);
+  }
+  30% {
+    opacity: 0.9;
+    left: 70%;
+    top: 44.3%;
+    transform: translate(-50%, -50%) scale(0.4);
+  }
+  35% {
+    opacity: 0;
+    left: 70%;
+    top: 44.3%;
+    transform: translate(-50%, -50%) scale(1.6);
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes landingGhostMove {
+  0%,
+  9% {
+    opacity: 0;
+    left: 10%;
+    top: 44.3%;
+    transform: translate(-50%, -50%) scale(0.9);
+  }
+  11% {
+    opacity: 1;
+    left: 10%;
+    top: 44.3%;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  28% {
+    opacity: 1;
+    left: 70%;
+    top: 44.3%;
+    transform: translate(-50%, -50%) scale(1.05);
+  }
+  31% {
+    opacity: 0;
+    left: 70%;
+    top: 44.3%;
+    transform: translate(-50%, -50%) scale(0.8);
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes landingDropPop {
+  0%,
+  29% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.6);
+  }
+  31% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.12);
+  }
+  34% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  96% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.6);
+  }
+}
+
+@keyframes landingArrowPop {
+  0%,
+  29% {
+    opacity: 0;
+  }
+  33%,
+  96% {
+    opacity: 1;
+  }
+  99%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes landingLbColor {
+  0%,
+  48% {
+    border-color: #16a34a;
+  }
+  52%,
+  86% {
+    border-color: #dc2626;
+  }
+  94%,
+  100% {
+    border-color: #16a34a;
+  }
+}
+
+@keyframes landingServersColor {
+  0%,
+  48% {
+    border-color: #16a34a;
+  }
+  52%,
+  86% {
+    border-color: #f59e0b;
+  }
+  94%,
+  100% {
+    border-color: #16a34a;
+  }
+}
+
+@keyframes landingCacheColor {
+  0%,
+  48% {
+    border-color: #16a34a;
+  }
+  52%,
+  86% {
+    border-color: #f08c00;
+  }
+  94%,
+  100% {
+    border-color: #16a34a;
+  }
+}
+
+@keyframes landingTrafficVisible {
+  0%,
+  33% {
+    opacity: 0;
+  }
+  36%,
+  94% {
+    opacity: 1;
+  }
+  97%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes landingPacketMove {
+  0% {
+    left: var(--sx);
+    top: var(--sy);
+    opacity: 0;
+  }
+  12% {
+    opacity: 1;
+  }
+  88% {
+    left: var(--ex);
+    top: var(--ey);
+    opacity: 1;
+  }
+  100% {
+    left: var(--ex);
+    top: var(--ey);
+    opacity: 0;
+  }
+}
+
+@keyframes landingBtnPress {
+  0%,
+  46% {
+    transform: scale(1);
+    background: #1b1b1f;
+  }
+  49% {
+    transform: scale(0.88);
+    background: #4d7cfe;
+  }
+  53% {
+    transform: scale(1);
+    background: #1b1b1f;
+  }
+  100% {
+    transform: scale(1);
+    background: #1b1b1f;
+  }
+}
+
+@keyframes landingCalmFade {
+  0%,
+  46% {
+    opacity: 1;
+  }
+  52%,
+  84% {
+    opacity: 0;
+  }
+  90%,
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes landingSpikeFade {
+  0%,
+  46% {
+    opacity: 0;
+  }
+  52%,
+  84% {
+    opacity: 1;
+  }
+  90%,
+  100% {
+    opacity: 0;
+  }
 }
 
 /* ---- Sections ---- */
@@ -531,5 +1069,28 @@
 
   .landing-nav-links {
     display: none;
+  }
+}
+
+/* Anyone who's asked their OS for reduced motion gets the finished diagram
+   as a static picture — no cursor, no drag, no drop, no color cycling —
+   instead of the full 10s loop. */
+@media (prefers-reduced-motion: reduce) {
+  .landing-demo-cursor,
+  .landing-click-ripple,
+  .landing-ghost-node,
+  .landing-rich-node-dropped,
+  .landing-rich-node-lb,
+  .landing-rich-node-servers,
+  .landing-rich-arrow-pending,
+  .landing-traffic-layer,
+  .landing-packet,
+  .landing-sim-btn-demo,
+  .landing-v-calm,
+  .landing-v-spike,
+  .landing-node-pulse-healthy,
+  .landing-node-pulse-strained,
+  .landing-preview-metric-value {
+    animation: none !important;
   }
 }
