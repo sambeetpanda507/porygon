@@ -44,7 +44,7 @@ import {
 import type { SimulationStatus, VersionSummary } from "@porygon/ui";
 import { SCENARIO_PROMPTS } from "@/content/prompts";
 import { idbGet, idbSet } from "@/lib/db";
-import { buildShareUrl, decodeBase64ToScene } from "@/lib/sharing";
+import { buildShareUrl, decodeBase64ToScene, getShareParamFromLocation } from "@/lib/sharing";
 import type {
   ResetCommand,
   SetFailuresCommand,
@@ -137,10 +137,10 @@ export function Canvas(): ReactNode {
   useEffect(() => {
     let cancelled = false;
 
-    // A ?share=<encoded> link renders a read-only snapshot straight from
+    // A #share=<encoded> link renders a read-only snapshot straight from
     // the URL, never touching this browser's own saved diagram — picking
     // that up instead of the real one would be a quiet, confusing bug.
-    const shareParam = new URLSearchParams(window.location.search).get("share");
+    const shareParam = getShareParamFromLocation();
     if (shareParam) {
       try {
         const sharedScene = decodeBase64ToScene<StoredScene>(shareParam);
@@ -168,6 +168,21 @@ export function Canvas(): ReactNode {
     return (): void => {
       cancelled = true;
     };
+  }, []);
+
+  // Navigating to a URL that differs only by its fragment (e.g. pasting a
+  // new #share=... link into a tab that's already on /design) never
+  // reloads the page in any browser — the above effect, which only runs
+  // once on mount, would silently never notice the new share link. A full
+  // reload is the simplest correct fix: it re-runs that effect from
+  // scratch against the new hash instead of trying to splice a second
+  // "load a share" code path into already-mounted state.
+  useEffect(() => {
+    function handleHashChange(): void {
+      window.location.reload();
+    }
+    window.addEventListener("hashchange", handleHashChange);
+    return (): void => window.removeEventListener("hashchange", handleHashChange);
   }, []);
 
   // First-run hint: only for a genuinely empty, never-dismissed canvas —

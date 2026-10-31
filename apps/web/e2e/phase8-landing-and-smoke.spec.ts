@@ -117,6 +117,6 @@ test.describe("landing page & full happy-path smoke test", () => {
     const shareUrl: string | undefined = await page.evaluate(
       () => (window as unknown as { __copiedText?: string }).__copiedText,
     );
-    expect(shareUrl).toContain("/design?share=");
+    expect(shareUrl).toContain("/design#share=");
   });
 });

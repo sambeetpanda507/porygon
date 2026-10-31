@@ -121,7 +121,7 @@ test.describe("sharing & local persistence", () => {
       () => (window as unknown as { __copiedText?: string }).__copiedText,
     );
     if (!shareUrl) throw new Error("no share link was copied");
-    expect(shareUrl).toContain("/design?share=");
+    expect(shareUrl).toContain("/design#share=");
 
     await page.goto(shareUrl);
     await canvas.waitFor({ state: "visible" });
@@ -132,11 +132,74 @@ test.describe("sharing & local persistence", () => {
     await expect(page.getByTestId("debug-panel-toggle")).toHaveCount(0);
 
     await page.getByTestId("duplicate-to-edit").click();
-    await page.waitForURL((url) => !url.search.includes("share="));
+    await page.waitForURL((url) => !url.hash.includes("share="));
     await canvas.waitFor({ state: "visible" });
 
     await expect(page.getByTestId("share-banner")).toHaveCount(0);
     await page.getByTestId("debug-panel-toggle").click();
     await expect(page.getByTestId("debug-node-count")).toHaveText("1");
+  });
+
+  test("a share link for a large diagram doesn't 431 — regression for putting the scene in a query param", async ({
+    page,
+    context,
+  }) => {
+    test.setTimeout(60_000);
+    await page.goto("/design");
+    const canvas = page.locator("canvas.excalidraw__canvas").first();
+    await canvas.waitFor({ state: "visible" });
+    const box = await canvas.boundingBox();
+    if (!box) throw new Error("canvas has no bounding box");
+
+    // A dozen nodes is already enough to push a query-param-encoded scene
+    // past Node's default 16KB max HTTP header size — the actual bug a
+    // user hit (431 Request Header Fields Too Large) once a real diagram
+    // grew past a handful of nodes.
+    const componentIds = [
+      "client",
+      "mobile-app",
+      "cdn-edge",
+      "load-balancer",
+      "api-gateway",
+      "server-vm",
+      "container",
+      "postgresql",
+      "mongodb",
+      "redis-cache",
+      "queue-sqs-style",
+      "object-storage",
+    ];
+    for (const [index, componentId] of componentIds.entries()) {
+      const dropX = 260 + (index % 4) * 160;
+      const dropY = 150 + Math.floor(index / 4) * 150;
+      await dragComponentOntoCanvas(page, componentId, box, dropX, dropY);
+    }
+
+    await page.getByTestId("debug-panel-toggle").click();
+    await expect(page.getByTestId("debug-node-count")).toHaveText(String(componentIds.length));
+    await page.getByTestId("debug-panel-toggle").click();
+
+    await page.evaluate(() => {
+      (window as unknown as { __copiedText?: string }).__copiedText = undefined;
+      navigator.clipboard.writeText = async (text: string): Promise<void> => {
+        (window as unknown as { __copiedText?: string }).__copiedText = text;
+      };
+    });
+    await page.getByTestId("sharing-panel-toggle").click();
+    await page.getByTestId("copy-share-link").click();
+    const shareUrl: string | undefined = await page.evaluate(
+      () => (window as unknown as { __copiedText?: string }).__copiedText,
+    );
+    if (!shareUrl) throw new Error("no share link was copied");
+    expect(shareUrl).toContain("/design#share=");
+
+    const responses: number[] = [];
+    const freshPage = await context.newPage();
+    freshPage.on("response", (response) => responses.push(response.status()));
+    await freshPage.goto(shareUrl);
+    await freshPage.locator("canvas.excalidraw__canvas").first().waitFor({ state: "visible" });
+
+    expect(responses).not.toContain(431);
+    await expect(freshPage.getByTestId("share-banner")).toBeVisible();
   });
 });
