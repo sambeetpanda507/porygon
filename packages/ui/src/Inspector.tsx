@@ -3,6 +3,7 @@
 import type { ChangeEvent, ReactNode } from "react";
 import {
   getComponentById,
+  getComponentExplanation,
   getComponentStats,
   type ComponentDef,
   type ComponentStats,
@@ -17,6 +18,7 @@ export interface InspectorProps {
   onStatsChange: (stats: ComponentStats) => void;
   activeFailures: readonly FailureInjection[];
   onToggleFailure: (failure: FailureInjection) => void;
+  explainMode: boolean;
 }
 
 const NODE_FAILURE_TYPES: readonly FailureType[] = [
@@ -59,6 +61,7 @@ export function Inspector({
   onStatsChange,
   activeFailures,
   onToggleFailure,
+  explainMode,
 }: InspectorProps): ReactNode {
   function isFailureActive(type: FailureType, targetId: string): boolean {
     return activeFailures.some(
@@ -97,6 +100,27 @@ export function Inspector({
     return (
       <div className="inspector" data-testid="inspector">
         <div className="inspector-empty">Unknown component.</div>
+      </div>
+    );
+  }
+
+  if (explainMode) {
+    return (
+      <div className="inspector" data-testid="inspector">
+        <div className="inspector-header">
+          <div className="icon-glyph" style={{ background: component.color }}>
+            {component.glyph}
+          </div>
+          <div>
+            <div className="inspector-title" data-testid="inspector-label">
+              {component.label}
+            </div>
+            <div className="inspector-category">{component.categoryId}</div>
+          </div>
+        </div>
+        <div className="inspector-explanation" data-testid="inspector-explanation">
+          {getComponentExplanation(component)}
+        </div>
       </div>
     );
   }

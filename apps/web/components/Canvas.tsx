@@ -28,11 +28,19 @@ import {
   type Graph,
   type GraphWarning,
   type ScenarioPreset,
+  type ScenarioPrompt,
   type SimulationTick,
   type TrafficSpec,
 } from "@porygon/simulator";
-import { ComponentLibrary, GraphDebugPanel, Inspector, SimulationPanel } from "@porygon/ui";
+import {
+  ComponentLibrary,
+  GraphDebugPanel,
+  Inspector,
+  PracticePanel,
+  SimulationPanel,
+} from "@porygon/ui";
 import type { SimulationStatus } from "@porygon/ui";
+import { SCENARIO_PROMPTS } from "@/content/prompts";
 import { idbGet, idbSet } from "@/lib/db";
 import type {
   ResetCommand,
@@ -92,10 +100,15 @@ export function Canvas(): ReactNode {
   const [graph, setGraph] = useState<Graph>(EMPTY_GRAPH);
   const [warnings, setWarnings] = useState<readonly GraphWarning[]>([]);
   const [showDebugPanel, setShowDebugPanel] = useState<boolean>(false);
+  const [showPracticePanel, setShowPracticePanel] = useState<boolean>(false);
   const [simStatus, setSimStatus] = useState<SimulationStatus>("idle");
   const [latestTick, setLatestTick] = useState<SimulationTick | null>(null);
   const [scenarioId, setScenarioId] = useState<string>(DEFAULT_SCENARIO_ID);
   const [activeFailures, setActiveFailures] = useState<readonly FailureInjection[]>([]);
+  const [selectedPromptId, setSelectedPromptId] = useState<string | undefined>(undefined);
+  const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
+  const [checkedItems, setCheckedItems] = useState<ReadonlySet<string>>(new Set());
+  const [explainMode, setExplainMode] = useState<boolean>(false);
   const saveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const excalidrawApiRef = useRef<ExcalidrawImperativeAPI | null>(null);
   const canvasWrapRef = useRef<HTMLDivElement | null>(null);
@@ -332,6 +345,46 @@ export function Canvas(): ReactNode {
     };
   }, []);
 
+  // Counts up once a second for as long as a practice prompt is selected;
+  // resets whenever the prompt changes (including to "none").
+  useEffect(() => {
+    if (!selectedPromptId) {
+      return;
+    }
+    const intervalId = setInterval(() => {
+      setElapsedSeconds((previous: number): number => previous + 1);
+    }, 1_000);
+    return (): void => clearInterval(intervalId);
+  }, [selectedPromptId]);
+
+  const handleSelectPrompt = useCallback((promptId: string | undefined): void => {
+    setSelectedPromptId(promptId);
+    setElapsedSeconds(0);
+    setCheckedItems(new Set());
+    const prompt: ScenarioPrompt | undefined = SCENARIO_PROMPTS.find(
+      (candidate) => candidate.id === promptId,
+    );
+    if (prompt) {
+      setScenarioId(prompt.scenarioId);
+    }
+  }, []);
+
+  const handleToggleChecklistItem = useCallback((item: string): void => {
+    setCheckedItems((previous: ReadonlySet<string>): ReadonlySet<string> => {
+      const next = new Set(previous);
+      if (next.has(item)) {
+        next.delete(item);
+      } else {
+        next.add(item);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleToggleExplainMode = useCallback((): void => {
+    setExplainMode((previous: boolean): boolean => !previous);
+  }, []);
+
   // Drop handling is wired via a native, capture-phase listener instead of a
   // React onDrop prop: Excalidraw's own canvas has its own drop handling
   // (for image files) that can swallow the bubbling React synthetic event
@@ -409,6 +462,7 @@ export function Canvas(): ReactNode {
       onStatsChange={handleStatsChange}
       activeFailures={activeFailures}
       onToggleFailure={handleToggleFailure}
+      explainMode={explainMode}
     />
   );
 
@@ -446,6 +500,26 @@ export function Canvas(): ReactNode {
           scenarioId={scenarioId}
           onScenarioChange={setScenarioId}
         />
+        <button
+          type="button"
+          className="practice-panel-toggle"
+          data-testid="practice-panel-toggle"
+          onClick={() => setShowPracticePanel((shown: boolean): boolean => !shown)}
+        >
+          {showPracticePanel ? "Hide practice mode" : "Practice mode"}
+        </button>
+        {showPracticePanel && (
+          <PracticePanel
+            prompts={SCENARIO_PROMPTS}
+            selectedPromptId={selectedPromptId}
+            onSelectPrompt={handleSelectPrompt}
+            elapsedSeconds={elapsedSeconds}
+            checkedItems={checkedItems}
+            onToggleChecklistItem={handleToggleChecklistItem}
+            explainMode={explainMode}
+            onToggleExplainMode={handleToggleExplainMode}
+          />
+        )}
       </div>
       {inspectorPanel}
     </div>
