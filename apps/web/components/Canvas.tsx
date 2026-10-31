@@ -16,12 +16,21 @@ import {
   getPorygonComponentId,
   getPorygonStatsOverride,
   withPorygonStatsOverride,
+  NODE_STATUS_COLORS,
   PORYGON_DRAG_MIME_TYPE,
 } from "@porygon/canvas";
 import { getComponentById, type ComponentDef, type ComponentStats } from "@porygon/icons";
-import { validateGraph, type Graph, type GraphWarning } from "@porygon/simulator";
-import { ComponentLibrary, GraphDebugPanel, Inspector } from "@porygon/ui";
+import {
+  validateGraph,
+  type Graph,
+  type GraphWarning,
+  type SimulationTick,
+  type TrafficSpec,
+} from "@porygon/simulator";
+import { ComponentLibrary, GraphDebugPanel, Inspector, SimulationPanel } from "@porygon/ui";
+import type { SimulationStatus } from "@porygon/ui";
 import { idbGet, idbSet } from "@/lib/db";
+import type { ResetCommand, StartCommand, StopCommand, WorkerMessage } from "@/workers/simulation.worker";
 
 const Excalidraw = dynamic(
   async () => (await import("@excalidraw/excalidraw")).Excalidraw,
@@ -38,9 +47,24 @@ interface StoredScene {
 }
 
 const EMPTY_GRAPH: Graph = { nodes: [], edges: [] };
+const SIM_TARGET_RPS = 2000;
+const SIM_RAMP_TICKS = 5;
+const SIM_TICK_INTERVAL_MS = 300;
 
 function graphsAreEqual(a: Graph, b: Graph): boolean {
   return JSON.stringify(a) === JSON.stringify(b);
+}
+
+/** The "client" component if one's on the canvas, else whichever node has
+ * no incoming edges (a root of the diagram), else just the first node. */
+function pickSourceNodeId(graph: Graph): string | undefined {
+  const clientNode = graph.nodes.find((node) => node.componentId === "client");
+  if (clientNode) {
+    return clientNode.id;
+  }
+  const targetIds = new Set(graph.edges.map((edge) => edge.toNodeId));
+  const rootNode = graph.nodes.find((node) => !targetIds.has(node.id));
+  return (rootNode ?? graph.nodes[0])?.id;
 }
 
 export function Canvas(): ReactNode {
@@ -53,9 +77,15 @@ export function Canvas(): ReactNode {
   const [graph, setGraph] = useState<Graph>(EMPTY_GRAPH);
   const [warnings, setWarnings] = useState<readonly GraphWarning[]>([]);
   const [showDebugPanel, setShowDebugPanel] = useState<boolean>(false);
+  const [simStatus, setSimStatus] = useState<SimulationStatus>("idle");
+  const [latestTick, setLatestTick] = useState<SimulationTick | null>(null);
   const saveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const excalidrawApiRef = useRef<ExcalidrawImperativeAPI | null>(null);
   const canvasWrapRef = useRef<HTMLDivElement | null>(null);
+  const simWorkerRef = useRef<Worker | null>(null);
+  const originalColorsRef = useRef<
+    Map<string, { backgroundColor: string; strokeColor: string }>
+  >(new Map());
 
   useEffect(() => {
     let cancelled = false;
@@ -142,6 +172,115 @@ export function Canvas(): ReactNode {
     },
     [selectedElementId],
   );
+
+  // Captured once per run (not cleared on pause/reset) so re-running the
+  // simulation, or resetting after it, always restores each node's actual
+  // catalog color rather than whatever color a previous run happened to
+  // leave it in.
+  const captureOriginalColors = useCallback((): void => {
+    const api: ExcalidrawImperativeAPI | null = excalidrawApiRef.current;
+    if (!api) {
+      return;
+    }
+    for (const element of api.getSceneElements()) {
+      if (getPorygonComponentId(element) && !originalColorsRef.current.has(element.id)) {
+        originalColorsRef.current.set(element.id, {
+          backgroundColor: element.backgroundColor,
+          strokeColor: element.strokeColor,
+        });
+      }
+    }
+  }, []);
+
+  const applyTickColors = useCallback((result: SimulationTick): void => {
+    const api: ExcalidrawImperativeAPI | null = excalidrawApiRef.current;
+    if (!api) {
+      return;
+    }
+    const colorByNodeId = new Map<string, string>(
+      result.nodes.map((node) => [node.nodeId, NODE_STATUS_COLORS[node.status]]),
+    );
+    const existingElements: readonly OrderedExcalidrawElement[] = api.getSceneElements();
+    const updatedElements = existingElements.map(
+      (element: OrderedExcalidrawElement): OrderedExcalidrawElement => {
+        const color = colorByNodeId.get(element.id);
+        return color ? { ...element, backgroundColor: color, strokeColor: color } : element;
+      },
+    );
+    api.updateScene({ elements: updatedElements });
+  }, []);
+
+  const restoreOriginalColors = useCallback((): void => {
+    const api: ExcalidrawImperativeAPI | null = excalidrawApiRef.current;
+    if (!api) {
+      return;
+    }
+    const existingElements: readonly OrderedExcalidrawElement[] = api.getSceneElements();
+    const updatedElements = existingElements.map(
+      (element: OrderedExcalidrawElement): OrderedExcalidrawElement => {
+        const original = originalColorsRef.current.get(element.id);
+        return original ? { ...element, ...original } : element;
+      },
+    );
+    api.updateScene({ elements: updatedElements });
+  }, []);
+
+  const ensureSimWorker = useCallback((): Worker => {
+    let worker: Worker | null = simWorkerRef.current;
+    if (worker === null) {
+      worker = new Worker(new URL("../workers/simulation.worker.ts", import.meta.url));
+      worker.onmessage = (event: MessageEvent<WorkerMessage>): void => {
+        if (event.data.type === "tick") {
+          setLatestTick(event.data.result);
+          applyTickColors(event.data.result);
+        }
+      };
+      simWorkerRef.current = worker;
+    }
+    return worker;
+  }, [applyTickColors]);
+
+  const handleSimPlay = useCallback((): void => {
+    const sourceNodeId: string | undefined = pickSourceNodeId(graph);
+    if (!sourceNodeId) {
+      return;
+    }
+    captureOriginalColors();
+    const worker: Worker = ensureSimWorker();
+    const traffic: TrafficSpec = {
+      sourceNodeId,
+      targetRps: SIM_TARGET_RPS,
+      rampTicks: SIM_RAMP_TICKS,
+    };
+    const command: StartCommand = {
+      type: "start",
+      graph,
+      traffic,
+      tickIntervalMs: SIM_TICK_INTERVAL_MS,
+    };
+    worker.postMessage(command);
+    setSimStatus("running");
+  }, [graph, captureOriginalColors, ensureSimWorker]);
+
+  const handleSimPause = useCallback((): void => {
+    const command: StopCommand = { type: "stop" };
+    simWorkerRef.current?.postMessage(command);
+    setSimStatus("paused");
+  }, []);
+
+  const handleSimReset = useCallback((): void => {
+    const command: ResetCommand = { type: "reset" };
+    simWorkerRef.current?.postMessage(command);
+    setSimStatus("idle");
+    setLatestTick(null);
+    restoreOriginalColors();
+  }, [restoreOriginalColors]);
+
+  useEffect(() => {
+    return (): void => {
+      simWorkerRef.current?.terminate();
+    };
+  }, []);
 
   // Drop handling is wired via a native, capture-phase listener instead of a
   // React onDrop prop: Excalidraw's own canvas has its own drop handling
@@ -243,6 +382,14 @@ export function Canvas(): ReactNode {
           {showDebugPanel ? "Hide graph debug" : "Graph debug"}
         </button>
         {showDebugPanel && <GraphDebugPanel graph={graph} warnings={warnings} />}
+        <SimulationPanel
+          graph={graph}
+          tick={latestTick}
+          status={simStatus}
+          onPlay={handleSimPlay}
+          onPause={handleSimPause}
+          onReset={handleSimReset}
+        />
       </div>
       {inspectorPanel}
     </div>
