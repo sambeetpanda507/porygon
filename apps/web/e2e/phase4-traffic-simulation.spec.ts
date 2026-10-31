@@ -86,6 +86,8 @@ test.describe("traffic simulation", () => {
       .locator("li")
       .filter({ hasText: "Server / VM" });
 
+    await expect(page.getByTestId("simulation-overview")).toHaveCount(0);
+
     await page.getByTestId("sim-play").click();
     await expect(page.getByTestId("simulation-status")).toHaveText("Simulation: running");
 
@@ -94,6 +96,13 @@ test.describe("traffic simulation", () => {
 
     const serverRps = serverRow.locator('[data-testid$="-rps"]');
     await expect(serverRps).not.toHaveText("0 rps");
+
+    // The brief overview above the per-node list should match: Client and
+    // Load Balancer stay well under capacity, only Server / VM tips over.
+    const overview = page.getByTestId("simulation-overview");
+    await expect(overview).toContainText("3 nodes");
+    await expect(overview).toContainText("2 healthy, 0 strained, 1 overloaded");
+    await expect(overview).toContainText("watch: Server / VM");
 
     await page.getByTestId("sim-pause").click();
     await expect(page.getByTestId("simulation-status")).toHaveText("Simulation: paused");
@@ -106,6 +115,7 @@ test.describe("traffic simulation", () => {
     await page.getByTestId("sim-reset").click();
     await expect(page.getByTestId("simulation-status")).toHaveText("Simulation: idle");
     await expect(page.getByTestId("simulation-node-list")).toHaveCount(0);
+    await expect(page.getByTestId("simulation-overview")).toHaveCount(0);
   });
 
   test("multiple client nodes are each treated as an independent traffic source", async ({

@@ -385,6 +385,16 @@ body {
   color: #9aa0ac;
 }
 
+.simulation-overview {
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: #4b5563;
+  background: #f7f8fa;
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin-bottom: 10px;
+}
+
 .simulation-node-list {
   list-style: none;
   margin: 0;
